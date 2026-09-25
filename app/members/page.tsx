@@ -30,7 +30,7 @@ async function getMembersData(gymId: string, logger: RequestLogger) {
     // scan that grew linearly with the gym's entire renewal history.
     const membersRes = await supabase
       .from('members')
-      .select('id, gym_id, member_number, name, phone, gender, age, area, pending_amount, created_at, legacy_member_id', { count: 'exact' })
+      .select('id, gym_id, member_number, name, phone, gender, age, date_of_birth, cnic, area, pending_amount, created_at, legacy_member_id', { count: 'exact' })
       .eq('gym_id', gymId)
       .order('created_at', { ascending: false })
       .limit(PAGE_SIZE)

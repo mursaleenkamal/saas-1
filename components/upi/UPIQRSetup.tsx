@@ -1,76 +1,104 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
-import { Upload, Camera, CheckCircle2, XCircle, Loader2, QrCode, Trash2 } from 'lucide-react'
-import { parseUPIQRCode } from '@/lib/upi'
-import type { UPIParsedData } from '@/lib/upi'
-import { saveUPIConfig, deleteUPIConfig } from '@/app/account/upi-actions'
-import type { UPIConfig } from '@/app/account/upi-actions'
+import { useState, useRef, useEffect } from 'react'
+import { Upload, Camera, CheckCircle2, Loader2, Trash2, Smartphone, Building2, ShieldCheck, Edit3 } from 'lucide-react'
+import { savePakistanPaymentConfig, deleteUPIConfig, saveUPIConfig } from '@/app/account/upi-actions'
+import type { UPIConfig, PakistanPaymentConfig } from '@/app/account/upi-actions'
+import { toast } from 'react-hot-toast'
 
 interface Props {
-  /** Pre-loaded config (null if not set up yet) */
   initialConfig: UPIConfig | null
-  /** Callback after successful save/delete */
   onConfigChange?: (config: UPIConfig | null) => void
 }
 
-type Status = 'idle' | 'scanning' | 'parsed' | 'saved' | 'error'
+type TabMode = 'manual' | 'qr'
 
-/**
- * UPI QR Setup component.
- *
- * Allows the gym owner to:
- *  1. Upload an image of their merchant UPI QR code, OR
- *  2. Scan using the device camera
- *
- * The QR is decoded client-side using jsQR, then parsed via parseUPIQRCode().
- * Only normalized merchant data is stored in the database.
- */
 export default function UPIQRSetup({ initialConfig, onConfigChange }: Props) {
-  const [status, setStatus] = useState<Status>(initialConfig ? 'saved' : 'idle')
-  const [parsed, setParsed] = useState<UPIParsedData | null>(null)
-  const [error, setError] = useState('')
+  const existingParams = initialConfig?.raw_params || {}
+
   const [config, setConfig] = useState<UPIConfig | null>(initialConfig)
-  const [deleting, setDeleting] = useState(false)
+  const [tabMode, setTabMode] = useState<TabMode>('manual')
+  const [isEditing, setIsEditing] = useState(!initialConfig)
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [error, setError] = useState('')
+
+  // Form fields
+  const [jazzcashNumber, setJazzcashNumber] = useState(
+    existingParams.jazzcash_number || (initialConfig?.upi_id?.startsWith('03') ? initialConfig.upi_id : '') || ''
+  )
+  const [jazzcashTitle, setJazzcashTitle] = useState(
+    existingParams.jazzcash_title || initialConfig?.merchant_name || ''
+  )
+
+  const [easypaisaNumber, setEasypaisaNumber] = useState(
+    existingParams.easypaisa_number || ''
+  )
+  const [easypaisaTitle, setEasypaisaTitle] = useState(
+    existingParams.easypaisa_title || initialConfig?.merchant_name || ''
+  )
+
+  const [raastId, setRaastId] = useState(
+    existingParams.raast_id || existingParams.bank_account || ''
+  )
+  const [raastTitle, setRaastTitle] = useState(
+    existingParams.raast_title || existingParams.bank_title || initialConfig?.merchant_name || ''
+  )
 
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const streamRef = useRef<MediaStream | null>(null)
-  const animFrameRef = useRef<number | null>(null)
 
-  // Cleanup camera on unmount
-  useEffect(() => {
-    return () => {
-      stopCamera()
+  // ── Handle Manual Save ───────────────────────────────────────────────────
+  async function handleManualSave(e: React.FormEvent) {
+    e.preventDefault()
+    if (!jazzcashNumber && !easypaisaNumber && !raastId) {
+      setError('Please provide at least one account (JazzCash, EasyPaisa, or Raast).')
+      return
     }
-  }, [])
 
-  function stopCamera() {
-    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop())
-      streamRef.current = null
+    setSaving(true)
+    setError('')
+
+    const payload: PakistanPaymentConfig = {
+      default_provider: jazzcashNumber ? 'jazzcash' : easypaisaNumber ? 'easypaisa' : 'raast',
+      jazzcash_number: jazzcashNumber.trim(),
+      jazzcash_title: jazzcashTitle.trim(),
+      easypaisa_number: easypaisaNumber.trim(),
+      easypaisa_title: easypaisaTitle.trim(),
+      raast_id: raastId.trim(),
+      raast_title: raastTitle.trim(),
     }
+
+    const res = await savePakistanPaymentConfig(payload)
+    setSaving(false)
+
+    if (!res.success) {
+      setError(res.error || 'Failed to save account details')
+      return
+    }
+
+    toast.success('Online payment accounts saved!')
+    const updated: UPIConfig = {
+      id: config?.id || '',
+      gym_id: config?.gym_id || '',
+      upi_id: payload.jazzcash_number || payload.easypaisa_number || payload.raast_id || '',
+      merchant_name: payload.jazzcash_title || payload.easypaisa_title || payload.raast_title || '',
+      merchant_code: null,
+      currency: 'PKR',
+      raw_params: payload,
+      created_at: config?.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+    setConfig(updated)
+    setIsEditing(false)
+    onConfigChange?.(updated)
   }
 
-  // ── Decode QR from ImageData using jsQR ──────────────────────────────────
-  async function decodeQRFromImageData(imageData: ImageData): Promise<string | null> {
-    const jsQR = (await import('jsqr')).default
-    const result = jsQR(imageData.data, imageData.width, imageData.height)
-    return result?.data ?? null
-  }
-
-  // ── Handle file upload ───────────────────────────────────────────────────
+  // ── Handle File Upload / QR Decoding ──────────────────────────────────────
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
 
-    setStatus('scanning')
     setError('')
-    setParsed(null)
-
     try {
       const bitmap = await createImageBitmap(file)
       const canvas = document.createElement('canvas')
@@ -80,294 +108,302 @@ export default function UPIQRSetup({ initialConfig, onConfigChange }: Props) {
       ctx.drawImage(bitmap, 0, 0)
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
 
-      const decoded = await decodeQRFromImageData(imageData)
-      if (!decoded) {
-        setError('Could not detect a QR code in the image. Please try a clearer image.')
-        setStatus('error')
+      const jsQR = (await import('jsqr')).default
+      const result = jsQR(imageData.data, imageData.width, imageData.height)
+
+      if (!result?.data) {
+        setError('Could not detect a QR code in the image. Please try a clearer image or enter details manually.')
         return
       }
 
-      processDecodedString(decoded)
-    } catch (err) {
-      setError('Failed to process the image. Please try another file.')
-      setStatus('error')
-    }
-
-    // Reset file input so the same file can be re-selected
-    if (fileInputRef.current) fileInputRef.current.value = ''
-  }
-
-  // ── Handle camera scan ───────────────────────────────────────────────────
-  async function startCamera() {
-    setStatus('scanning')
-    setError('')
-    setParsed(null)
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } },
-      })
-      streamRef.current = stream
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        videoRef.current.play()
-        scanFrame()
+      const decoded = result.data
+      // Extract phone number or details if present
+      const phoneMatch = decoded.match(/03\d{9}/) || decoded.match(/923\d{9}/)
+      if (phoneMatch) {
+        let phone = phoneMatch[0]
+        if (phone.startsWith('92')) phone = '0' + phone.slice(2)
+        setJazzcashNumber(phone)
+        setEasypaisaNumber(phone)
+        setRaastId(phone)
+        toast.success(`Account number ${phone} extracted from QR!`)
+        setTabMode('manual')
+      } else {
+        setRaastId(decoded.slice(0, 30))
+        toast.success('QR Code data read successfully!')
+        setTabMode('manual')
       }
     } catch {
-      setError('Camera access denied or not available.')
-      setStatus('error')
+      setError('Failed to process image. You can enter your account number directly above.')
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
 
-  function scanFrame() {
-    const video = videoRef.current
-    const canvas = canvasRef.current
-    if (!video || !canvas || video.readyState !== video.HAVE_ENOUGH_DATA) {
-      animFrameRef.current = requestAnimationFrame(scanFrame)
-      return
-    }
-
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
-    const ctx = canvas.getContext('2d')!
-    ctx.drawImage(video, 0, 0)
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-
-    // Async decode
-    decodeQRFromImageData(imageData).then(decoded => {
-      if (decoded) {
-        stopCamera()
-        processDecodedString(decoded)
-      } else {
-        animFrameRef.current = requestAnimationFrame(scanFrame)
-      }
-    })
-  }
-
-  // ── Process decoded QR string ────────────────────────────────────────────
-  function processDecodedString(decoded: string) {
-    const result = parseUPIQRCode(decoded)
-    if (!result.success) {
-      setError(result.error)
-      setStatus('error')
-      return
-    }
-    setParsed(result.data)
-    setStatus('parsed')
-  }
-
-  // ── Save parsed config ───────────────────────────────────────────────────
-  async function handleSave() {
-    if (!parsed) return
-    setSaving(true)
-
-    const result = await saveUPIConfig({
-      upiId: parsed.upiId,
-      merchantName: parsed.merchantName,
-      merchantCode: parsed.merchantCode,
-      currency: parsed.currency,
-      rawParams: parsed.rawParams,
-    })
-
-    if (!result.success) {
-      setError(result.error ?? 'Failed to save')
-      setSaving(false)
-      setStatus('error')
-      return
-    }
-
-    setSaving(false)
-    setStatus('saved')
-    const newConfig = {
-      id: '',
-      gym_id: '',
-      upi_id: parsed.upiId,
-      merchant_name: parsed.merchantName,
-      merchant_code: parsed.merchantCode,
-      currency: parsed.currency,
-      raw_params: parsed.rawParams,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    } as UPIConfig
-    setConfig(newConfig)
-    onConfigChange?.(newConfig)
-  }
-
-  // ── Delete config ────────────────────────────────────────────────────────
+  // ── Delete Config ─────────────────────────────────────────────────────────
   async function handleDelete() {
-    if (!confirm('Remove your UPI payment setup? Members will no longer be able to pay via generated QR code.')) return
+    if (!confirm('Remove your online payment setup? Members will not see your QR code until you configure it again.')) return
     setDeleting(true)
     const result = await deleteUPIConfig()
     setDeleting(false)
     if (result.success) {
       setConfig(null)
-      setParsed(null)
-      setStatus('idle')
+      setJazzcashNumber('')
+      setJazzcashTitle('')
+      setEasypaisaNumber('')
+      setEasypaisaTitle('')
+      setRaastId('')
+      setRaastTitle('')
+      setIsEditing(true)
       onConfigChange?.(null)
+      toast.success('Payment setup removed')
     }
   }
 
-  // ── Render: Saved state ──────────────────────────────────────────────────
-  if (status === 'saved' || (status === 'idle' && config)) {
-    const displayConfig = config
-    return (
-      <div className="space-y-4">
-        <div className="flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
-          <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-emerald-800">UPI Payment Configured</p>
-            <p className="text-xs text-emerald-700 mt-0.5 truncate">
-              {displayConfig?.merchant_name} &middot; {displayConfig?.upi_id}
-            </p>
-          </div>
-          <button
-            onClick={handleDelete}
-            disabled={deleting}
-            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-            title="Remove UPI config"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
-        <button
-          onClick={() => { setStatus('idle'); setConfig(null); setParsed(null) }}
-          className="text-xs font-semibold text-brand-600 hover:underline"
-        >
-          Re-scan / Upload new QR
-        </button>
-      </div>
-    )
-  }
+  // ── Display: Saved state ──────────────────────────────────────────────────
+  if (!isEditing && config) {
+    const raw = config.raw_params || {}
+    const jcNum = raw.jazzcash_number || (config.upi_id?.startsWith('03') ? config.upi_id : null)
+    const epNum = raw.easypaisa_number
+    const rId = raw.raast_id
 
-  // ── Render: Parsed preview ───────────────────────────────────────────────
-  if (status === 'parsed' && parsed) {
-    return (
-      <div className="space-y-4">
-        <div className="p-4 bg-brand-50 border border-brand-200 rounded-xl space-y-2">
-          <p className="text-xs font-bold text-brand-700 uppercase tracking-wide">Detected Merchant</p>
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div>
-              <p className="text-xs text-slate-500">UPI ID</p>
-              <p className="font-bold text-slate-900 break-all">{parsed.upiId}</p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-500">Name</p>
-              <p className="font-bold text-slate-900">{parsed.merchantName || '(not set)'}</p>
-            </div>
-            {parsed.merchantCode && (
-              <div>
-                <p className="text-xs text-slate-500">Merchant Code</p>
-                <p className="font-bold text-slate-900">{parsed.merchantCode}</p>
-              </div>
-            )}
-            <div>
-              <p className="text-xs text-slate-500">Currency</p>
-              <p className="font-bold text-slate-900">{parsed.currency}</p>
-            </div>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold rounded-xl transition-colors disabled:opacity-60"
-          >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-            Confirm & Save
-          </button>
-          <button
-            onClick={() => { setStatus('idle'); setParsed(null); setError('') }}
-            className="px-4 py-2.5 bg-slate-100 text-slate-700 text-sm font-semibold rounded-xl hover:bg-slate-200 transition-colors"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  // ── Render: Scanning with camera ─────────────────────────────────────────
-  if (status === 'scanning' && streamRef.current) {
     return (
       <div className="space-y-3">
-        <div className="relative rounded-xl overflow-hidden border border-slate-200 bg-black aspect-[4/3]">
-          <video ref={videoRef} className="w-full h-full object-cover" muted playsInline />
-          <canvas ref={canvasRef} className="hidden" />
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="w-48 h-48 border-2 border-white/60 rounded-2xl" />
+        <div className="p-4 bg-emerald-50/70 border border-emerald-200 rounded-2xl space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+              <span className="font-bold text-slate-900 text-sm">Online Payments Configured</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setIsEditing(true)}
+                className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                title="Edit Accounts"
+              >
+                <Edit3 className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                title="Delete Accounts"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
           </div>
-          <div className="absolute bottom-3 left-0 right-0 text-center">
-            <span className="text-xs font-bold text-white/80 bg-black/50 px-3 py-1 rounded-full">
-              Point camera at UPI QR code
-            </span>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 text-xs">
+            {jcNum && (
+              <div className="p-2.5 bg-white rounded-xl border border-emerald-100">
+                <span className="text-[10px] font-bold text-red-600 uppercase tracking-wide block">JazzCash</span>
+                <p className="font-bold text-slate-900 mt-0.5">{jcNum}</p>
+                <p className="text-slate-500 text-[11px] truncate">{raw.jazzcash_title || config.merchant_name}</p>
+              </div>
+            )}
+            {epNum && (
+              <div className="p-2.5 bg-white rounded-xl border border-emerald-100">
+                <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wide block">EasyPaisa</span>
+                <p className="font-bold text-slate-900 mt-0.5">{epNum}</p>
+                <p className="text-slate-500 text-[11px] truncate">{raw.easypaisa_title || config.merchant_name}</p>
+              </div>
+            )}
+            {rId && (
+              <div className="p-2.5 bg-white rounded-xl border border-emerald-100">
+                <span className="text-[10px] font-bold text-sky-600 uppercase tracking-wide block">Raast / Bank</span>
+                <p className="font-bold text-slate-900 mt-0.5 truncate">{rId}</p>
+                <p className="text-slate-500 text-[11px] truncate">{raw.raast_title || config.merchant_name}</p>
+              </div>
+            )}
           </div>
         </div>
+
         <button
-          onClick={() => { stopCamera(); setStatus('idle') }}
-          className="w-full py-2 text-sm font-semibold text-slate-600 bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors"
+          type="button"
+          onClick={() => setIsEditing(true)}
+          className="text-xs font-semibold text-brand-600 hover:text-brand-700 hover:underline"
         >
-          Cancel
+          + Update or change payment account numbers
         </button>
       </div>
     )
   }
 
-  // ── Render: Default (idle / error) ───────────────────────────────────────
+  // ── Display: Edit / Setup form ────────────────────────────────────────────
   return (
-    <div className="space-y-3">
-      {error && (
-        <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
-          <XCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-          <p>{error}</p>
-        </div>
-      )}
-
-      {status === 'scanning' && !streamRef.current && (
-        <div className="flex items-center justify-center gap-2 p-6 text-slate-500">
-          <Loader2 className="w-5 h-5 animate-spin" />
-          <span className="text-sm font-medium">Processing...</span>
-        </div>
-      )}
-
-      <p className="text-sm text-slate-600 font-medium">
-        Upload your merchant UPI QR code image or scan it with your camera. We'll extract your UPI ID automatically.
-      </p>
-
-      <div className="grid grid-cols-2 gap-3">
+    <div className="space-y-4">
+      {/* Switch between Manual & QR */}
+      <div className="flex border-b border-slate-200">
         <button
-          onClick={() => fileInputRef.current?.click()}
-          className="flex flex-col items-center gap-2 p-5 bg-white border-2 border-dashed border-slate-200 rounded-xl hover:border-brand-400 hover:bg-brand-50/30 transition-all group"
+          type="button"
+          onClick={() => setTabMode('manual')}
+          className={`py-2 px-4 text-xs font-bold border-b-2 transition-all ${
+            tabMode === 'manual'
+              ? 'border-brand-600 text-brand-600'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
         >
-          <div className="w-10 h-10 bg-brand-50 rounded-xl flex items-center justify-center group-hover:bg-brand-100 transition-colors">
-            <Upload className="w-5 h-5 text-brand-600" />
-          </div>
-          <span className="text-sm font-bold text-slate-700">Upload Image</span>
-          <span className="text-[10px] text-slate-400">JPG, PNG</span>
+          Enter Account Numbers (Recommended)
         </button>
-
         <button
-          onClick={startCamera}
-          className="flex flex-col items-center gap-2 p-5 bg-white border-2 border-dashed border-slate-200 rounded-xl hover:border-brand-400 hover:bg-brand-50/30 transition-all group"
+          type="button"
+          onClick={() => setTabMode('qr')}
+          className={`py-2 px-4 text-xs font-bold border-b-2 transition-all ${
+            tabMode === 'qr'
+              ? 'border-brand-600 text-brand-600'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
         >
-          <div className="w-10 h-10 bg-brand-50 rounded-xl flex items-center justify-center group-hover:bg-brand-100 transition-colors">
-            <Camera className="w-5 h-5 text-brand-600" />
-          </div>
-          <span className="text-sm font-bold text-slate-700">Scan with Camera</span>
-          <span className="text-[10px] text-slate-400">Use device camera</span>
+          Scan / Upload Existing QR Image
         </button>
       </div>
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handleFileUpload}
-      />
+      {error && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 font-medium">
+          {error}
+        </div>
+      )}
 
-      {/* Hidden elements for camera scanning */}
-      <video ref={videoRef} className="hidden" muted playsInline />
-      <canvas ref={canvasRef} className="hidden" />
+      {tabMode === 'manual' ? (
+        <form onSubmit={handleManualSave} className="space-y-3.5">
+          {/* JazzCash */}
+          <div className="p-3.5 border border-slate-200 rounded-xl bg-slate-50/50 space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-600" />
+              <span className="font-bold text-slate-800 text-xs uppercase tracking-wide">JazzCash Account</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 mb-1">Mobile / Account Number</label>
+                <input
+                  type="text"
+                  value={jazzcashNumber}
+                  onChange={(e) => setJazzcashNumber(e.target.value)}
+                  placeholder="0300 1234567"
+                  className="input-field text-xs py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 mb-1">Account Title</label>
+                <input
+                  type="text"
+                  value={jazzcashTitle}
+                  onChange={(e) => setJazzcashTitle(e.target.value)}
+                  placeholder="e.g. Ali Khan"
+                  className="input-field text-xs py-2"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* EasyPaisa */}
+          <div className="p-3.5 border border-slate-200 rounded-xl bg-slate-50/50 space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+              <span className="font-bold text-slate-800 text-xs uppercase tracking-wide">EasyPaisa Account</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 mb-1">Mobile / Account Number</label>
+                <input
+                  type="text"
+                  value={easypaisaNumber}
+                  onChange={(e) => setEasypaisaNumber(e.target.value)}
+                  placeholder="0345 1234567"
+                  className="input-field text-xs py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 mb-1">Account Title</label>
+                <input
+                  type="text"
+                  value={easypaisaTitle}
+                  onChange={(e) => setEasypaisaTitle(e.target.value)}
+                  placeholder="e.g. Ali Khan"
+                  className="input-field text-xs py-2"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Raast / Bank */}
+          <div className="p-3.5 border border-slate-200 rounded-xl bg-slate-50/50 space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-sky-600" />
+              <span className="font-bold text-slate-800 text-xs uppercase tracking-wide">Raast ID / Bank Account (Optional)</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 mb-1">Raast ID / IBAN</label>
+                <input
+                  type="text"
+                  value={raastId}
+                  onChange={(e) => setRaastId(e.target.value)}
+                  placeholder="0300 1234567 or PK..."
+                  className="input-field text-xs py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 mb-1">Account Title</label>
+                <input
+                  type="text"
+                  value={raastTitle}
+                  onChange={(e) => setRaastTitle(e.target.value)}
+                  placeholder="e.g. Iron Gym"
+                  className="input-field text-xs py-2"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-2 flex gap-2">
+            {config && (
+              <button
+                type="button"
+                onClick={() => setIsEditing(false)}
+                className="px-4 py-2.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+              >
+                Cancel
+              </button>
+            )}
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex-1 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-bold text-xs shadow-md shadow-brand-500/20 disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
+            >
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+              Save Payment Accounts
+            </button>
+          </div>
+        </form>
+      ) : (
+        /* Upload QR image */
+        <div className="border-2 border-dashed border-slate-200 rounded-2xl p-6 text-center space-y-3 bg-slate-50/50">
+          <div className="w-12 h-12 rounded-xl bg-brand-50 text-brand-600 mx-auto flex items-center justify-center">
+            <Upload className="w-6 h-6 text-brand-600" />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-slate-800">Upload your merchant QR code sticker/image</p>
+            <p className="text-[11px] text-slate-500 mt-0.5">Supports JazzCash, EasyPaisa, or Raast QR codes</p>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="px-4 py-2 bg-white border border-slate-300 hover:border-slate-400 rounded-xl text-xs font-semibold text-slate-700 shadow-2xs transition-colors"
+          >
+            Select Image
+          </button>
+        </div>
+      )}
     </div>
   )
 }

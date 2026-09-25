@@ -147,7 +147,7 @@ function MembersContent({ members, gymId, totalCount }: Props) {
   const filtered = useMemo(() => 
     membersList
       .filter((m) => {
-        const matchesSearch = m.name.toLowerCase().includes(deferredSearch.toLowerCase()) || m.phone.includes(deferredSearch)
+        const matchesSearch = m.name.toLowerCase().includes(deferredSearch.toLowerCase()) || m.phone.includes(deferredSearch) || (m.cnic != null && m.cnic.includes(deferredSearch))
         const matchesId = deferredIdSearch === '' || (m.member_number != null && formatMemberId(m.member_number).toLowerCase().includes(deferredIdSearch.toLowerCase()))
         const matchesFilter = filter === 'all' || m.status === filter
         

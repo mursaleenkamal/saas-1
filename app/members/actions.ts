@@ -18,6 +18,7 @@ export interface CreateMemberInput {
   gender?: string
   age?: number
   date_of_birth?: string
+  cnic?: string
   area?: string
   pending_amount?: number
   plan: Plan
@@ -38,6 +39,7 @@ export interface UpdateMemberInput {
   gender?: string | null
   age?: number | null
   date_of_birth?: string | null
+  cnic?: string | null
   area?: string | null
 }
 
@@ -62,6 +64,7 @@ export async function createMemberAction(input: CreateMemberInput) {
         ...(input.gender && { gender: input.gender }),
         ...(input.age && { age: input.age }),
         ...(input.date_of_birth && { date_of_birth: input.date_of_birth }),
+        ...(input.cnic && input.cnic.trim() && { cnic: input.cnic.trim() }),
         ...(input.area && input.area.trim() && { area: input.area.trim() }),
       })
       .select('id, member_number')
@@ -157,6 +160,7 @@ export async function updateMemberAction(input: UpdateMemberInput) {
         ...(input.gender ? { gender: input.gender } : { gender: null }),
         age: input.age ?? null,
         date_of_birth: input.date_of_birth || null,
+        cnic: input.cnic?.trim() || null,
         area: input.area?.trim() || null,
       })
       .eq('id', input.memberId)
@@ -193,7 +197,7 @@ export async function exportMembersToExcelAction(
     const { data: members, error } = await supabase
       .from('members')
       .select(`
-        id, gym_id, member_number, name, phone, gender, age, area, pending_amount, created_at, legacy_member_id,
+        id, gym_id, member_number, name, phone, gender, age, date_of_birth, cnic, area, pending_amount, created_at, legacy_member_id,
         memberships(
           plan, start_date, end_date, amount, category, created_at
         )
@@ -250,6 +254,7 @@ export async function exportMembersToExcelAction(
       { header: 'Member #',       key: 'num',      width: 12 },
       { header: 'Name',           key: 'name',     width: 25 },
       { header: 'Phone',          key: 'phone',    width: 15 },
+      { header: 'CNIC',           key: 'cnic',     width: 18 },
       { header: 'Status',         key: 'status',   width: 12 },
       { header: 'Gender',         key: 'gender',   width: 10 },
       { header: 'Age',            key: 'age',      width: 8  },
@@ -270,6 +275,7 @@ export async function exportMembersToExcelAction(
         num:    m.member_number ? formatMemberId(m.member_number) : '-',
         name:   m.name,
         phone:  m.phone,
+        cnic:   m.cnic || '-',
         status: m.status.toUpperCase(),
         gender: m.gender ? m.gender.charAt(0).toUpperCase() + m.gender.slice(1) : '-',
         age:    m.age || '-',
@@ -307,7 +313,7 @@ export async function loadMoreMembersAction(gymId: string, offset: number, limit
     const { data: members, error } = await supabase
       .from('members')
       .select(`
-        id, gym_id, member_number, name, phone, gender, age, area, pending_amount, created_at, legacy_member_id,
+        id, gym_id, member_number, name, phone, gender, age, date_of_birth, cnic, area, pending_amount, created_at, legacy_member_id,
         memberships(
           id, plan, start_date, end_date, amount, payment_mode, category, created_at, member_id, gym_id
         )
@@ -344,6 +350,8 @@ export async function loadMoreMembersAction(gymId: string, offset: number, limit
         phone: m.phone,
         gender: m.gender,
         age: m.age,
+        date_of_birth: m.date_of_birth,
+        cnic: m.cnic,
         area: m.area,
         pending_amount: m.pending_amount,
         created_at: m.created_at,

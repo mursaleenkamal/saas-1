@@ -144,6 +144,8 @@ export async function POST(req: NextRequest) {
       date_of_birth = dob
     }
 
+    const cnic = body.cnic !== undefined && body.cnic !== null && body.cnic !== '' ? String(body.cnic).trim() : null
+
     log.start('GET_GYM')
     const gym = await getGymForUser(supabase, user.id)
     log.end('GET_GYM')
@@ -163,6 +165,7 @@ export async function POST(req: NextRequest) {
         age,
         gender,
         date_of_birth,
+        cnic,
         member_number,
         gym_id: gym.id
       })

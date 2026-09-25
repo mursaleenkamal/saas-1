@@ -44,9 +44,9 @@ export default function NewMemberPage() {
     planName: 'Custom', category: 'both', duration: 'monthly', price: 1500, joiningFee: 0
   })
 
-  // UPI payment modal state
+  // Online payment modal state
   const [showUPIModal, setShowUPIModal] = useState(false)
-  const [upiConfig, setUpiConfig] = useState<{ upi_id: string; merchant_name: string; merchant_code?: string | null; currency?: string } | null>(null)
+  const [upiConfig, setUpiConfig] = useState<{ upi_id?: string; merchant_name?: string; merchant_code?: string | null; currency?: string; raw_params?: Record<string, any> } | null>(null)
 
   const [form, setForm] = useState({
     name: '',
@@ -54,6 +54,7 @@ export default function NewMemberPage() {
     gender: '' as 'male' | 'female' | 'other' | '',
     age: '',
     date_of_birth: '',
+    cnic: '',
     area: '',
     member_number: '',
     plan: 'monthly' as Plan,
@@ -91,13 +92,23 @@ export default function NewMemberPage() {
       const plans = (gym.onboarding_data as any)?.plans || []
       setGymPlans(plans)
 
-      // Fetch UPI config for the payment modal
+      // Fetch Online payment config for the modal
       const { data: upiData } = await supabase
         .from('gym_upi_config')
-        .select('upi_id, merchant_name, merchant_code, currency')
+        .select('upi_id, merchant_name, merchant_code, currency, raw_params')
         .eq('gym_id', gym.id)
         .maybeSingle()
-      if (upiData) setUpiConfig(upiData)
+      if (upiData) {
+        setUpiConfig(upiData)
+      } else if ((gym.onboarding_data as any)?.payment_config) {
+        const pc = (gym.onboarding_data as any).payment_config
+        setUpiConfig({
+          upi_id: pc.jazzcash_number || pc.easypaisa_number || pc.raast_id || '',
+          merchant_name: pc.jazzcash_title || pc.easypaisa_title || gym.name,
+          currency: 'PKR',
+          raw_params: pc,
+        })
+      }
 
       const defaultPlan = plans.find((p: MembershipPlan) => p.duration === 'monthly' && p.category === 'both') 
                        || plans.find((p: MembershipPlan) => p.duration === 'monthly')
@@ -142,6 +153,15 @@ export default function NewMemberPage() {
       age--
     }
     return age >= 0 && age <= 120 ? String(age) : ''
+  }
+
+  function formatCnicOnBlur(val: string): string {
+    if (!val) return ''
+    const digits = val.replace(/\D/g, '')
+    if (digits.length === 13) {
+      return `${digits.slice(0, 5)}-${digits.slice(5, 12)}-${digits.slice(12, 13)}`
+    }
+    return val
   }
 
   function update(field: string, value: string) {
@@ -209,6 +229,7 @@ export default function NewMemberPage() {
         gender: form.gender || undefined,
         age: form.age ? parseInt(form.age) : undefined,
         date_of_birth: form.date_of_birth || undefined,
+        cnic: form.cnic.trim() || undefined,
         area: form.area.trim() || undefined,
         pending_amount: parseInt(form.pending_amount) || 0,
         plan: form.plan,
@@ -311,9 +332,10 @@ export default function NewMemberPage() {
 
           <div className="p-5 space-y-3">
             <DetailRow icon={<Phone className="w-4 h-4 text-slate-400" />} label="Phone" value={form.phone} />
+            {form.cnic && <DetailRow icon={<Hash className="w-4 h-4 text-slate-400" />} label="CNIC" value={form.cnic} />}
             {form.gender && <DetailRow icon={<User className="w-4 h-4 text-slate-400" />} label="Gender" value={form.gender.charAt(0).toUpperCase() + form.gender.slice(1)} />}
-            {form.age && <DetailRow icon={<User className="w-4 h-4 text-slate-400" />} label="Age" value={`${form.age} yrs`} />}
             {form.date_of_birth && <DetailRow icon={<Calendar className="w-4 h-4 text-slate-400" />} label="Date of Birth" value={formatDate(form.date_of_birth)} />}
+            {form.age && <DetailRow icon={<User className="w-4 h-4 text-slate-400" />} label="Age" value={`${form.age} yrs`} />}
             {form.area && <DetailRow icon={<MapPin className="w-4 h-4 text-slate-400" />} label="Area" value={form.area} />}
             <DetailRow icon={<Calendar className="w-4 h-4 text-slate-400" />} label="Plan" value={planLabel} />
             <DetailRow icon={<Calendar className="w-4 h-4 text-slate-400" />} label="Category" value={form.category === 'both' ? 'Strength + Cardio' : form.category.charAt(0).toUpperCase() + form.category.slice(1)} />
@@ -450,6 +472,20 @@ export default function NewMemberPage() {
                   className="input-field" placeholder="Ali Khan" required autoFocus />
               </div>
 
+              {/* CNIC Number */}
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">CNIC Number</label>
+                <input
+                  type="text"
+                  value={form.cnic}
+                  onChange={(e) => update('cnic', e.target.value)}
+                  onBlur={() => update('cnic', formatCnicOnBlur(form.cnic))}
+                  className="input-field"
+                  placeholder="42101-1234567-1"
+                  maxLength={15}
+                />
+              </div>
+
               {/* Gender */}
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Gender</label>
@@ -466,13 +502,6 @@ export default function NewMemberPage() {
                 </div>
               </div>
 
-              {/* Age */}
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Age</label>
-                <input type="number" value={form.age} onChange={(e) => update('age', e.target.value)}
-                  className="input-field" placeholder="25" min="1" max="120" />
-              </div>
-
               {/* Date of Birth */}
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
@@ -480,6 +509,13 @@ export default function NewMemberPage() {
                 </label>
                 <input type="date" value={form.date_of_birth} onChange={(e) => update('date_of_birth', e.target.value)}
                   className="input-field" max={format(new Date(), 'yyyy-MM-dd')} />
+              </div>
+
+              {/* Age */}
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Age</label>
+                <input type="number" value={form.age} onChange={(e) => update('age', e.target.value)}
+                  className="input-field" placeholder="25" min="1" max="120" />
               </div>
 
               {/* Area */}
@@ -694,7 +730,7 @@ export default function NewMemberPage() {
         </div>
       )}
 
-      {/* UPI Payment Modal */}
+      {/* Online Payment Modal (JazzCash / EasyPaisa / Raast) */}
       <UPIPaymentModal
         open={showUPIModal}
         onClose={() => setShowUPIModal(false)}
@@ -705,6 +741,7 @@ export default function NewMemberPage() {
         merchantConfig={upiConfig}
         amount={totalAmount}
         memberName={form.name.trim()}
+        memberNumber={form.member_number}
       />
 
     </div>

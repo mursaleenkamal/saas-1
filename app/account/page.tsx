@@ -18,11 +18,12 @@ export default async function AccountPage() {
   // Extract onboarding details stored in JSONB
   const ob = (gym.onboarding_data ?? {}) as Record<string, any>
 
-  // Fetch summary counts for display
-  const [membersRes, membershipsRes, attendanceRes] = await Promise.all([
+  // Fetch summary counts and payment config for display
+  const [membersRes, membershipsRes, attendanceRes, upiRes] = await Promise.all([
     supabase.from('members').select('id', { count: 'exact', head: true }).eq('gym_id', gym.id),
     supabase.from('memberships').select('id', { count: 'exact', head: true }).eq('gym_id', gym.id),
     supabase.from('attendance').select('id', { count: 'exact', head: true }).eq('gym_id', gym.id),
+    supabase.from('gym_upi_config').select('*').eq('gym_id', gym.id).maybeSingle(),
   ])
 
   return (
@@ -34,6 +35,7 @@ export default async function AccountPage() {
       memberCount={membersRes.count ?? 0}
       membershipCount={membershipsRes.count ?? 0}
       attendanceCount={attendanceRes.count ?? 0}
+      paymentConfig={(upiRes?.data as any) ?? null}
       gymType={ob.gymType ?? null}
       gymCity={ob.city ?? null}
       gymPhone={ob.phone ?? null}

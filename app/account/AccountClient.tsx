@@ -6,13 +6,15 @@ import {
   Settings, Copy, Lock, Trash2, AlertTriangle, Eye, EyeOff,
   Building2, Mail, Calendar, Users, CreditCard, CalendarCheck,
   ChevronLeft, Check, X, ShieldAlert, Hash, MapPin, Phone,
-  Edit3,
+  Edit3, Smartphone,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { formatDate } from '@/lib/utils'
 import Image from 'next/image'
 import { invalidateGymCache, invalidateAllGymCaches } from './actions'
 import { computeSubscriptionState } from '@/lib/subscription-utils'
+import UPIQRSetup from '@/components/upi/UPIQRSetup'
+import type { UPIConfig } from './upi-actions'
 
 interface Props {
   email: string
@@ -32,6 +34,7 @@ interface Props {
   planType?: string | null
   trialEndsAt?: string | null
   subscriptionEndsAt?: string | null
+  paymentConfig?: UPIConfig | null
 }
 
 type ModalType = 'gym-name' | 'gym-info' | 'password' | 'delete-data' | 'delete-gym' | null
@@ -44,6 +47,7 @@ export function AccountClient({
   memberCount,
   membershipCount,
   attendanceCount,
+  paymentConfig = null,
   gymType,
   gymCity,
   gymPhone,
@@ -515,6 +519,21 @@ export function AccountClient({
             )}
           </div>
         </div>
+      </div>
+
+      {/* Online Payment Accounts (JazzCash / EasyPaisa / Raast) */}
+      <div className="card p-5 space-y-4">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 bg-brand-50 rounded-xl flex items-center justify-center">
+            <Smartphone className="w-4 h-4 text-brand-600" />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-slate-800 uppercase tracking-widest">Online Payment Methods</p>
+            <p className="text-xs text-slate-500">Configure JazzCash, EasyPaisa, and Raast accounts for member QR payments</p>
+          </div>
+        </div>
+
+        <UPIQRSetup initialConfig={paymentConfig} />
       </div>
 
       {/* Settings Actions */}

@@ -33,9 +33,19 @@ export function EditMemberClient({ member }: Props) {
     gender: (member.gender ?? '') as 'male' | 'female' | 'other' | '',
     age: member.age ? String(member.age) : '',
     date_of_birth: member.date_of_birth ? member.date_of_birth.slice(0, 10) : '',
+    cnic: member.cnic ?? '',
     area: member.area ?? '',
     member_number: String(member.member_number),
   })
+
+  function formatCnicOnBlur(val: string): string {
+    if (!val) return ''
+    const digits = val.replace(/\D/g, '')
+    if (digits.length === 13) {
+      return `${digits.slice(0, 5)}-${digits.slice(5, 12)}-${digits.slice(12, 13)}`
+    }
+    return val
+  }
   function calculateAge(dobString: string): string {
     if (!dobString) return ''
     const parts = dobString.split('-')
@@ -93,10 +103,12 @@ export function EditMemberClient({ member }: Props) {
     changes.push({ field: 'phone', label: 'Phone', from: member.phone, to: form.phone })
   if (form.gender !== (member.gender ?? ''))
     changes.push({ field: 'gender', label: 'Gender', from: member.gender ?? '—', to: form.gender || '—' })
-  if (form.age !== (member.age ? String(member.age) : ''))
-    changes.push({ field: 'age', label: 'Age', from: member.age ? `${member.age} yrs` : '—', to: form.age ? `${form.age} yrs` : '—' })
+  if (form.cnic !== (member.cnic ?? ''))
+    changes.push({ field: 'cnic', label: 'CNIC', from: member.cnic || '—', to: form.cnic || '—' })
   if (form.date_of_birth !== (member.date_of_birth ? member.date_of_birth.slice(0, 10) : ''))
     changes.push({ field: 'date_of_birth', label: 'Birth Date', from: member.date_of_birth ? member.date_of_birth.slice(0, 10) : '—', to: form.date_of_birth || '—' })
+  if (form.age !== (member.age ? String(member.age) : ''))
+    changes.push({ field: 'age', label: 'Age', from: member.age ? `${member.age} yrs` : '—', to: form.age ? `${form.age} yrs` : '—' })
   if (form.area !== (member.area ?? ''))
     changes.push({ field: 'area', label: 'Area', from: member.area ?? '—', to: form.area || '—' })
 
@@ -123,6 +135,7 @@ export function EditMemberClient({ member }: Props) {
         gender: form.gender || null,
         age: form.age ? parseInt(form.age) : null,
         date_of_birth: form.date_of_birth || null,
+        cnic: form.cnic?.trim() || null,
         area: form.area.trim() || null,
       })
 
@@ -247,34 +260,47 @@ export function EditMemberClient({ member }: Props) {
               className="input-field" required maxLength={11} placeholder="0300 1234567" />
           </div>
 
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">CNIC Number</label>
+            <input
+              type="text"
+              value={form.cnic}
+              onChange={e => update('cnic', e.target.value)}
+              onBlur={() => update('cnic', formatCnicOnBlur(form.cnic))}
+              className="input-field"
+              placeholder="42101-1234567-1"
+              maxLength={15}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Gender</label>
+            <div className="grid grid-cols-3 gap-2">
+              {(['male', 'female', 'other'] as const).map(g => (
+                <button key={g} type="button" onClick={() => update('gender', form.gender === g ? '' : g)}
+                  className={`py-3 px-2 rounded-2xl border-2 text-sm font-semibold transition-all text-center ${
+                    form.gender === g ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-slate-200 bg-white text-slate-500'
+                  }`}
+                >
+                  {g === 'male' ? 'M' : g === 'female' ? 'F' : 'O'}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Gender</label>
-              <div className="grid grid-cols-3 gap-2">
-                {(['male', 'female', 'other'] as const).map(g => (
-                  <button key={g} type="button" onClick={() => update('gender', form.gender === g ? '' : g)}
-                    className={`py-3 px-2 rounded-2xl border-2 text-sm font-semibold transition-all text-center ${
-                      form.gender === g ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-slate-200 bg-white text-slate-500'
-                    }`}
-                  >
-                    {g === 'male' ? 'M' : g === 'female' ? 'F' : 'O'}
-                  </button>
-                ))}
-              </div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
+                Date of Birth <span className="text-slate-400 normal-case font-medium">(for birthday wishes)</span>
+              </label>
+              <input type="date" value={form.date_of_birth} onChange={e => update('date_of_birth', e.target.value)}
+                className="input-field" max={new Date().toISOString().slice(0, 10)} />
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Age</label>
               <input type="number" value={form.age} onChange={e => update('age', e.target.value)}
                 className="input-field" placeholder="25" min="1" max="120" />
             </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
-              Date of Birth <span className="text-slate-400 normal-case font-medium">(for birthday wishes)</span>
-            </label>
-            <input type="date" value={form.date_of_birth} onChange={e => update('date_of_birth', e.target.value)}
-              className="input-field" max={new Date().toISOString().slice(0, 10)} />
           </div>
 
           <div>

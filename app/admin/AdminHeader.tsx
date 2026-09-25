@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { BarChart3, CreditCard, LayoutDashboard, LogOut } from 'lucide-react'
+import { BarChart3, CreditCard, LayoutDashboard, LogOut, ShieldAlert } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 

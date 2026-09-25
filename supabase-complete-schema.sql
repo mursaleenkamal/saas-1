@@ -264,10 +264,22 @@ ALTER TABLE members ADD COLUMN IF NOT EXISTS age INTEGER CHECK (age > 0 AND age 
 -- [Migration 5b] Add date_of_birth to members (drives birthday_wishes WhatsApp automation)
 ALTER TABLE members ADD COLUMN IF NOT EXISTS date_of_birth DATE;
 
+-- [Migration 5c] Add cnic to members
+ALTER TABLE members ADD COLUMN IF NOT EXISTS cnic TEXT;
+CREATE INDEX IF NOT EXISTS idx_members_cnic ON members(gym_id, cnic);
+
 -- [Migration 7] Add profile info to gyms
 ALTER TABLE gyms ADD COLUMN IF NOT EXISTS city TEXT;
 ALTER TABLE gyms ADD COLUMN IF NOT EXISTS gst_number TEXT;
 ALTER TABLE gyms ADD COLUMN IF NOT EXISTS phone TEXT;
+
+-- [Migration 8] Support Pakistan payment methods (JazzCash, EasyPaisa, Raast) in gym_upi_config
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'gym_upi_config') THEN
+    ALTER TABLE gym_upi_config ALTER COLUMN currency SET DEFAULT 'PKR';
+  END IF;
+END $$;
 
 
 -- ================================================

@@ -89,6 +89,9 @@ export async function PATCH(
         updates.date_of_birth = dob
       }
     }
+    if (body.cnic !== undefined) {
+      updates.cnic = body.cnic === null || body.cnic === '' ? null : String(body.cnic).trim()
+    }
     if (body.member_number !== undefined) {
       const num = parseInt(body.member_number)
       if (isNaN(num)) return NextResponse.json({ success: false, error: { code: 'BAD_REQUEST', message: 'member_number must be an integer' } }, { status: 400 })

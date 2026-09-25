@@ -20,6 +20,7 @@ export interface Member {
   age?: number | null
   /** ISO date "YYYY-MM-DD". Drives the birthday_wishes WhatsApp automation. */
   date_of_birth?: string | null
+  cnic?: string | null
   area?: string | null
   pending_amount: number
   created_at: string

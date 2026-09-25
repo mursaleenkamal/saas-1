@@ -1202,7 +1202,7 @@ function StepPaymentSettings({ gymId }: { gymId: string | null }) {
           <div>
             <p className="text-sm font-bold text-blue-800">Set up Online / QR Payments</p>
             <p className="text-xs text-blue-600 mt-0.5 leading-relaxed">
-              Upload or scan your merchant payment QR code. We'll extract your account details automatically so members can pay via QR at the counter.
+              Enter your JazzCash, EasyPaisa, or Raast account details so members can scan to pay at the gym counter.
             </p>
           </div>
         </div>
@@ -1211,7 +1211,7 @@ function StepPaymentSettings({ gymId }: { gymId: string | null }) {
 
         <div className="pt-2 border-t border-slate-100">
           <p className="text-xs text-slate-400 leading-relaxed">
-            Supports Bank, Raast, EasyPaisa, JazzCash, and all digital payment QR codes.
+            Supports JazzCash, EasyPaisa, Raast, and all Pakistani Mobile Banking Apps.
             You can always update this later from Account Settings.
           </p>
         </div>
