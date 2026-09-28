@@ -53,22 +53,36 @@ export async function createMemberAction(input: CreateMemberInput) {
     if (!memberNumber) throw new Error('Member ID is required')
 
     // 1. Insert Member
-    const { data: member, error: memberError } = await supabase
+    const memberPayload: any = {
+      gym_id: input.gymId,
+      member_number: memberNumber,
+      name: input.name.trim(),
+      phone: input.phone.trim(),
+      pending_amount: input.pending_amount || 0,
+      ...(input.gender && { gender: input.gender }),
+      ...(input.age && { age: input.age }),
+      ...(input.date_of_birth && { date_of_birth: input.date_of_birth }),
+      ...(input.cnic && input.cnic.trim() && { cnic: input.cnic.trim() }),
+      ...(input.area && input.area.trim() && { area: input.area.trim() }),
+    }
+
+    let { data: member, error: memberError } = await supabase
       .from('members')
-      .insert({
-        gym_id: input.gymId,
-        member_number: memberNumber,
-        name: input.name.trim(),
-        phone: input.phone.trim(),
-        pending_amount: input.pending_amount || 0,
-        ...(input.gender && { gender: input.gender }),
-        ...(input.age && { age: input.age }),
-        ...(input.date_of_birth && { date_of_birth: input.date_of_birth }),
-        ...(input.cnic && input.cnic.trim() && { cnic: input.cnic.trim() }),
-        ...(input.area && input.area.trim() && { area: input.area.trim() }),
-      })
+      .insert(memberPayload)
       .select('id, member_number')
       .single()
+
+    // Graceful fallback: If 'cnic' column is not yet migrated in Supabase, retry without cnic so member registration succeeds
+    if (memberError && (memberError.message?.includes("'cnic'") || memberError.message?.includes('schema cache'))) {
+      delete memberPayload.cnic
+      const retry = await supabase
+        .from('members')
+        .insert(memberPayload)
+        .select('id, member_number')
+        .single()
+      member = retry.data
+      memberError = retry.error
+    }
 
     if (memberError) {
       if (memberError.code === '23505') {
@@ -151,19 +165,30 @@ export async function updateMemberAction(input: UpdateMemberInput) {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session?.user) throw new Error('Unauthorized')
 
-    const { error: err } = await supabase
+    const updatePayload: any = {
+      member_number: input.member_number,
+      name: input.name.trim(),
+      phone: input.phone.trim(),
+      ...(input.gender ? { gender: input.gender } : { gender: null }),
+      age: input.age ?? null,
+      date_of_birth: input.date_of_birth || null,
+      cnic: input.cnic?.trim() || null,
+      area: input.area?.trim() || null,
+    }
+
+    let { error: err } = await supabase
       .from('members')
-      .update({
-        member_number: input.member_number,
-        name: input.name.trim(),
-        phone: input.phone.trim(),
-        ...(input.gender ? { gender: input.gender } : { gender: null }),
-        age: input.age ?? null,
-        date_of_birth: input.date_of_birth || null,
-        cnic: input.cnic?.trim() || null,
-        area: input.area?.trim() || null,
-      })
+      .update(updatePayload)
       .eq('id', input.memberId)
+
+    if (err && (err.message?.includes("'cnic'") || err.message?.includes('schema cache'))) {
+      delete updatePayload.cnic
+      const retry = await supabase
+        .from('members')
+        .update(updatePayload)
+        .eq('id', input.memberId)
+      err = retry.error
+    }
 
     if (err) throw err
 
