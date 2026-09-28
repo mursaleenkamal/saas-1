@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/client'
 import type { Member } from '@/types'
 import { formatMemberId, parseMemberId } from '@/types'
 import { updateMemberAction } from '@/app/members/actions'
+import { formatCNIC } from '@/lib/utils'
 
 type Step = 'form' | 'preview'
 
@@ -39,12 +40,7 @@ export function EditMemberClient({ member }: Props) {
   })
 
   function formatCnicOnBlur(val: string): string {
-    if (!val) return ''
-    const digits = val.replace(/\D/g, '')
-    if (digits.length === 13) {
-      return `${digits.slice(0, 5)}-${digits.slice(5, 12)}-${digits.slice(12, 13)}`
-    }
-    return val
+    return formatCNIC(val)
   }
   function calculateAge(dobString: string): string {
     if (!dobString) return ''
@@ -265,8 +261,8 @@ export function EditMemberClient({ member }: Props) {
             <input
               type="text"
               value={form.cnic}
-              onChange={e => update('cnic', e.target.value)}
-              onBlur={() => update('cnic', formatCnicOnBlur(form.cnic))}
+              onChange={e => update('cnic', formatCNIC(e.target.value))}
+              onBlur={() => update('cnic', formatCNIC(form.cnic))}
               className="input-field"
               placeholder="42101-1234567-1"
               maxLength={15}

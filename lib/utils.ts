@@ -49,6 +49,22 @@ export function isValidPhone(phone: string): boolean {
   return /^[0-9]{10}$/.test(phone.replace(/\D/g, '').slice(-10))
 }
 
+/**
+ * Auto-formats Pakistani CNIC numbers to XXXXX-XXXXXXX-X format as digits are typed.
+ * Automatically inserts dashes at standard positions without requiring manual dash input.
+ */
+export function formatCNIC(val: string): string {
+  if (!val) return ''
+  const digits = val.replace(/\D/g, '').slice(0, 13)
+  if (digits.length <= 5) return digits
+  if (digits.length <= 12) return `${digits.slice(0, 5)}-${digits.slice(5)}`
+  return `${digits.slice(0, 5)}-${digits.slice(5, 12)}-${digits.slice(12, 13)}`
+}
+
+export function isValidCNIC(val: string): boolean {
+  return /^\d{5}-\d{7}-\d{1}$/.test(val)
+}
+
 export function buildWhatsAppLink(phone: string, memberName: string, endDate: string): string {
   const message = `Hi ${memberName}! 🏋️ Your gym membership expires on ${formatDate(endDate)}. Please renew to continue your fitness journey. Contact us to renew.`
   return buildCustomWhatsAppLink(phone, message)

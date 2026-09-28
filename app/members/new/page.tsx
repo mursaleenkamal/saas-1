@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Check, X, Edit2, User, Phone, MapPin, Calendar, CreditCard, Banknote, Hash, Plus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { calcEndDate, formatDate, formatCurrency, isValidPhone } from '@/lib/utils'
+import { calcEndDate, formatDate, formatCurrency, isValidPhone, formatCNIC } from '@/lib/utils'
 import type { Plan, PaymentMode } from '@/types'
 import { formatMemberId } from '@/types'
 import { format } from 'date-fns'
@@ -156,12 +156,7 @@ export default function NewMemberPage() {
   }
 
   function formatCnicOnBlur(val: string): string {
-    if (!val) return ''
-    const digits = val.replace(/\D/g, '')
-    if (digits.length === 13) {
-      return `${digits.slice(0, 5)}-${digits.slice(5, 12)}-${digits.slice(12, 13)}`
-    }
-    return val
+    return formatCNIC(val)
   }
 
   function update(field: string, value: string) {
@@ -478,8 +473,8 @@ export default function NewMemberPage() {
                 <input
                   type="text"
                   value={form.cnic}
-                  onChange={(e) => update('cnic', e.target.value)}
-                  onBlur={() => update('cnic', formatCnicOnBlur(form.cnic))}
+                  onChange={(e) => update('cnic', formatCNIC(e.target.value))}
+                  onBlur={() => update('cnic', formatCNIC(form.cnic))}
                   className="input-field"
                   placeholder="42101-1234567-1"
                   maxLength={15}

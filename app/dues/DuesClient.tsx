@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { MessageCircle, Check, Banknote, AlertCircle } from 'lucide-react'
+import { MessageCircle, Check, Banknote, AlertCircle, QrCode } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { toast } from 'react-hot-toast'
 import { collectDuePaymentAction } from '@/app/payments/actions'
+import UPIPaymentModal from '@/components/upi/UPIPaymentModal'
 
 interface DueMember {
   id: string
@@ -28,6 +29,8 @@ export function DuesClient({ members: initialMembers, gymId, totalDues }: Props)
   const [payMode, setPayMode] = useState<string>('cash')
   const [searchQuery, setSearchQuery] = useState('')
   const [collecting, setCollecting] = useState(false)
+  const [showQRModal, setShowQRModal] = useState(false)
+  const [activeDueMember, setActiveDueMember] = useState<DueMember | null>(null)
 
   const filteredMembers = useMemo(() => {
     if (!searchQuery) return members
@@ -189,6 +192,19 @@ export function DuesClient({ members: initialMembers, gymId, totalDues }: Props)
                       <option value="upi">Online / Transfer</option>
                       <option value="card">Card</option>
                     </select>
+                    {payMode === 'upi' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveDueMember(member)
+                          setShowQRModal(true)
+                        }}
+                        className="flex items-center gap-1 px-2.5 py-2 bg-brand-600 text-white text-sm font-semibold rounded-lg hover:bg-brand-700 transition-colors shadow-sm"
+                        title="Show Payment QR Code"
+                      >
+                        <QrCode className="w-4 h-4" /> Show QR
+                      </button>
+                    )}
                     <button
                       onClick={() => handleCollect(member)}
                       disabled={collecting}
@@ -215,6 +231,24 @@ export function DuesClient({ members: initialMembers, gymId, totalDues }: Props)
             ))}
           </div>
         </div>
+      )}
+
+      {/* Online Payment Modal for Dues Collection */}
+      {showQRModal && activeDueMember && (
+        <UPIPaymentModal
+          open={showQRModal}
+          onClose={() => setShowQRModal(false)}
+          onCollectManually={() => {
+            const m = activeDueMember
+            setShowQRModal(false)
+            handleCollect(m)
+          }}
+          merchantConfig={null}
+          amount={Number(payAmount) || activeDueMember.pending_amount}
+          memberName={activeDueMember.name}
+          memberNumber={activeDueMember.member_number}
+          gymId={gymId}
+        />
       )}
     </div>
   )

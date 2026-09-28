@@ -5,6 +5,7 @@ import { X, QrCode, Wallet, Loader2, CheckCircle2, Copy, Check, Settings, ArrowL
 import { generatePaymentQRCode, buildPakistanQRString, PakistanPaymentProvider } from '@/lib/payment/pakistan-qr'
 import { formatCurrency } from '@/lib/utils'
 import { savePakistanPaymentConfig } from '@/app/account/upi-actions'
+import { createClient } from '@/lib/supabase/client'
 import { toast } from 'react-hot-toast'
 
 interface MerchantConfig {
@@ -76,16 +77,61 @@ export default function UPIPaymentModal({
   useEffect(() => {
     if (open) {
       const raw = merchantConfig?.raw_params || {}
-      setJazzcashNumber(raw.jazzcash_number || (merchantConfig?.upi_id?.startsWith('03') ? merchantConfig.upi_id : '') || '')
-      setJazzcashTitle(raw.jazzcash_title || merchantConfig?.merchant_name || '')
-      setEasypaisaNumber(raw.easypaisa_number || '')
-      setEasypaisaTitle(raw.easypaisa_title || merchantConfig?.merchant_name || '')
-      setRaastId(raw.raast_id || raw.bank_account || '')
-      setRaastTitle(raw.raast_title || raw.bank_title || merchantConfig?.merchant_name || '')
+      const jcNum = raw.jazzcash_number || (merchantConfig?.upi_id?.startsWith('03') ? merchantConfig.upi_id : '') || ''
+      const jcTitle = raw.jazzcash_title || merchantConfig?.merchant_name || ''
+      const epNum = raw.easypaisa_number || ''
+      const epTitle = raw.easypaisa_title || merchantConfig?.merchant_name || ''
+      const rId = raw.raast_id || raw.bank_account || ''
+      const rTitle = raw.raast_title || raw.bank_title || merchantConfig?.merchant_name || ''
 
-      // If nothing configured at all, start on setup view
-      const hasAny = raw.jazzcash_number || raw.easypaisa_number || raw.raast_id || merchantConfig?.upi_id
-      setShowSetup(!hasAny)
+      setJazzcashNumber(jcNum)
+      setJazzcashTitle(jcTitle)
+      setEasypaisaNumber(epNum)
+      setEasypaisaTitle(epTitle)
+      setRaastId(rId)
+      setRaastTitle(rTitle)
+
+      // Always show QR code view directly when collecting member payment
+      setShowSetup(false)
+
+      // Automatically select whichever provider has an account configured
+      if (jcNum) {
+        setProvider('jazzcash')
+      } else if (epNum) {
+        setProvider('easypaisa')
+      } else if (rId) {
+        setProvider('raast')
+      }
+
+      // If merchantConfig doesn't have accounts, attempt to load fresh from Supabase
+      if (!jcNum && !epNum && !rId) {
+        const supabase = createClient()
+        supabase
+          .from('gym_upi_config')
+          .select('*')
+          .maybeSingle()
+          .then(({ data }: { data: any }) => {
+            if (data?.raw_params) {
+              const fresh = data.raw_params
+              if (fresh.jazzcash_number) {
+                setJazzcashNumber(fresh.jazzcash_number)
+                setProvider('jazzcash')
+              }
+              if (fresh.jazzcash_title) setJazzcashTitle(fresh.jazzcash_title)
+              if (fresh.easypaisa_number) {
+                setEasypaisaNumber(fresh.easypaisa_number)
+                if (!fresh.jazzcash_number) setProvider('easypaisa')
+              }
+              if (fresh.easypaisa_title) setEasypaisaTitle(fresh.easypaisa_title)
+              if (fresh.raast_id) {
+                setRaastId(fresh.raast_id)
+                if (!fresh.jazzcash_number && !fresh.easypaisa_number) setProvider('raast')
+              }
+              if (fresh.raast_title) setRaastTitle(fresh.raast_title)
+            }
+          })
+          .catch(() => {})
+      }
     }
   }, [open, merchantConfig])
 
@@ -104,7 +150,7 @@ export default function UPIPaymentModal({
       }
     }
     return {
-      number: raastId || jazzcashNumber || easypaisaNumber || '',
+      number: raastId || '',
       title: raastTitle || merchantConfig?.merchant_name || 'Gym Merchant',
     }
   }, [provider, jazzcashNumber, jazzcashTitle, easypaisaNumber, easypaisaTitle, raastId, raastTitle, merchantConfig])

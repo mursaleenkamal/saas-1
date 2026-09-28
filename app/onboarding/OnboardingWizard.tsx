@@ -4,10 +4,10 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Dumbbell, Building2, CreditCard, BarChart2, Settings, Megaphone, Sparkles,
-  ChevronRight, ChevronLeft, Check, Plus, Trash2, X, Clock, Users, TrendingUp, Zap
+  ChevronRight, ChevronLeft, Check, Plus, Trash2, X, Clock, Users, TrendingUp, Zap,
+  Smartphone, ShieldCheck
 } from 'lucide-react'
 import { WelcomeTransition } from '@/components/ui/WelcomeTransition'
-import UPIQRSetup from '@/components/upi/UPIQRSetup'
 
 // --- Types --------------------------------------------------------------------
 
@@ -69,11 +69,21 @@ interface AIPersonalizationData {
   additionalNotes: string
 }
 
+export interface PaymentSettingsData {
+  jazzcashNumber: string
+  jazzcashTitle: string
+  easypaisaNumber: string
+  easypaisaTitle: string
+  raastId: string
+  raastTitle: string
+}
+
 interface OnboardingData {
   gymDetails: GymDetailsData
   plans: MembershipPlan[]
   metrics: BusinessMetricsData
   operations: OperationsData
+  paymentSettings: PaymentSettingsData
   marketing: MarketingData
   aiPersonalization: AIPersonalizationData
 }
@@ -117,6 +127,14 @@ const DEFAULT_DATA: OnboardingData = {
     hasSplitShift: false,
     openTime2: '16:00',
     closeTime2: '21:00',
+  },
+  paymentSettings: {
+    jazzcashNumber: '',
+    jazzcashTitle: '',
+    easypaisaNumber: '',
+    easypaisaTitle: '',
+    raastId: '',
+    raastTitle: '',
   },
   marketing: {
     leadSources: [],
@@ -182,6 +200,7 @@ export function OnboardingWizard({ gymId, gymName }: OnboardingWizardProps) {
           plans: parsed.plans ?? prev.plans,
           metrics: { ...prev.metrics, ...parsed.metrics },
           operations: { ...prev.operations, ...parsed.operations },
+          paymentSettings: { ...prev.paymentSettings, ...parsed.paymentSettings },
           marketing: { ...prev.marketing, ...parsed.marketing },
           aiPersonalization: { ...prev.aiPersonalization, ...parsed.aiPersonalization },
         }))
@@ -229,6 +248,10 @@ export function OnboardingWizard({ gymId, gymName }: OnboardingWizardProps) {
 
   const updateAI = useCallback((patch: Partial<AIPersonalizationData>) => {
     setData(prev => ({ ...prev, aiPersonalization: { ...prev.aiPersonalization, ...patch } }))
+  }, [])
+
+  const updatePaymentSettings = useCallback((patch: Partial<PaymentSettingsData>) => {
+    setData(prev => ({ ...prev, paymentSettings: { ...prev.paymentSettings, ...patch } }))
   }, [])
 
   const updatePlan = useCallback((index: number, patch: Partial<MembershipPlan>) => {
@@ -290,6 +313,7 @@ export function OnboardingWizard({ gymId, gymName }: OnboardingWizardProps) {
           plans: data.plans,
           metrics: data.metrics,
           operations: data.operations,
+          paymentSettings: data.paymentSettings,
           marketing: data.marketing,
           aiPersonalization: data.aiPersonalization,
         }),
@@ -491,7 +515,11 @@ export function OnboardingWizard({ gymId, gymName }: OnboardingWizardProps) {
                 <StepOperations data={data.operations} onChange={updateOperations} />
               )}
               {currentStep === 4 && (
-                <StepPaymentSettings gymId={gymId} />
+                <StepPaymentSettings
+                  data={data.paymentSettings}
+                  gymName={data.gymDetails.gymName || gymName}
+                  onChange={updatePaymentSettings}
+                />
               )}
               {currentStep === 5 && (
                 <StepMarketing data={data.marketing} onChange={updateMarketing} />
@@ -1191,23 +1219,132 @@ function StepAIPersonalization({ data, onChange }: { data: AIPersonalizationData
   )
 }
 
-// --- Step 5: Payment Settings (UPI QR Upload) ---------------------------------
+// --- Step 5: Payment Settings (Configure Online Accounts) ------------------
 
-function StepPaymentSettings({ gymId }: { gymId: string | null }) {
+function StepPaymentSettings({
+  data,
+  gymName,
+  onChange,
+}: {
+  data: PaymentSettingsData
+  gymName: string
+  onChange: (patch: Partial<PaymentSettingsData>) => void
+}) {
+  const defaultTitle = gymName ? gymName : 'Mursaleen Gym'
+
   return (
     <div className="space-y-4">
       <div className="card p-5 space-y-4">
-        <div className="flex items-start gap-3 p-3.5 bg-blue-50 rounded-xl border border-blue-100">
-          <CreditCard className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+        {/* Header */}
+        <div className="flex items-center gap-2.5 pb-2 border-b border-slate-100">
+          <div className="w-9 h-9 bg-brand-500/10 text-brand-600 rounded-xl flex items-center justify-center font-bold">
+            <Smartphone className="w-5 h-5 text-brand-600" />
+          </div>
           <div>
-            <p className="text-sm font-bold text-blue-800">Set up Online / QR Payments</p>
-            <p className="text-xs text-blue-600 mt-0.5 leading-relaxed">
-              Enter your JazzCash, EasyPaisa, or Raast account details so members can scan to pay at the gym counter.
-            </p>
+            <h3 className="font-bold text-slate-900 text-base leading-tight">
+              Configure Online Accounts
+            </h3>
+            <p className="text-[11px] text-slate-500 font-medium">JazzCash &middot; EasyPaisa &middot; Raast / Bank</p>
           </div>
         </div>
 
-        <UPIQRSetup initialConfig={null} />
+        {/* Info Banner */}
+        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-start gap-2">
+          <ShieldCheck className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+          <span>
+            Apna <strong>JazzCash</strong>, <strong>EasyPaisa</strong> ya <strong>Raast ID</strong> enter karein. Member scan karega to us k bank/wallet app mien details fetch ho jayengi.
+          </span>
+        </div>
+
+        {/* JazzCash Section */}
+        <div className="border border-slate-200 rounded-xl p-3.5 space-y-3 bg-slate-50/50">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-red-600" />
+            <span className="font-bold text-slate-800 text-xs uppercase tracking-wide">JazzCash Account</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div>
+              <label className="block text-[11px] font-bold text-slate-500 mb-1">Mobile / Account Number</label>
+              <input
+                type="text"
+                value={data.jazzcashNumber}
+                onChange={(e) => onChange({ jazzcashNumber: e.target.value })}
+                placeholder="0300 1234567"
+                className="input-field text-sm py-2 bg-white"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-slate-500 mb-1">Account Title</label>
+              <input
+                type="text"
+                value={data.jazzcashTitle}
+                onChange={(e) => onChange({ jazzcashTitle: e.target.value })}
+                placeholder={`e.g. ${defaultTitle}`}
+                className="input-field text-sm py-2 bg-white"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* EasyPaisa Section */}
+        <div className="border border-slate-200 rounded-xl p-3.5 space-y-3 bg-slate-50/50">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+            <span className="font-bold text-slate-800 text-xs uppercase tracking-wide">EasyPaisa Account</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div>
+              <label className="block text-[11px] font-bold text-slate-500 mb-1">Mobile / Account Number</label>
+              <input
+                type="text"
+                value={data.easypaisaNumber}
+                onChange={(e) => onChange({ easypaisaNumber: e.target.value })}
+                placeholder="0345 1234567"
+                className="input-field text-sm py-2 bg-white"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-slate-500 mb-1">Account Title</label>
+              <input
+                type="text"
+                value={data.easypaisaTitle}
+                onChange={(e) => onChange({ easypaisaTitle: e.target.value })}
+                placeholder={`e.g. ${defaultTitle}`}
+                className="input-field text-sm py-2 bg-white"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Raast / Bank Account Section */}
+        <div className="border border-slate-200 rounded-xl p-3.5 space-y-3 bg-slate-50/50">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-sky-600" />
+            <span className="font-bold text-slate-800 text-xs uppercase tracking-wide">Raast ID / Bank Account (Optional)</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div>
+              <label className="block text-[11px] font-bold text-slate-500 mb-1">Raast ID (Phone / IBAN)</label>
+              <input
+                type="text"
+                value={data.raastId}
+                onChange={(e) => onChange({ raastId: e.target.value })}
+                placeholder="0300 1234567 or PK..."
+                className="input-field text-sm py-2 bg-white"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-slate-500 mb-1">Account Title</label>
+              <input
+                type="text"
+                value={data.raastTitle}
+                onChange={(e) => onChange({ raastTitle: e.target.value })}
+                placeholder={`e.g. ${defaultTitle}`}
+                className="input-field text-sm py-2 bg-white"
+              />
+            </div>
+          </div>
+        </div>
 
         <div className="pt-2 border-t border-slate-100">
           <p className="text-xs text-slate-400 leading-relaxed">

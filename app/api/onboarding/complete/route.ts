@@ -46,6 +46,7 @@ export async function POST(req: NextRequest) {
       plans?: any
       metrics?: any
       operations?: any
+      paymentSettings?: any
       marketing?: any
       aiPersonalization?: any
     }
@@ -57,7 +58,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { gymId, gymName, gymType, branchCount, address, openingYear, phone, city,
-            plans, metrics, operations, marketing, aiPersonalization } = body
+            plans, metrics, operations, paymentSettings, marketing, aiPersonalization } = body
 
     if (!gymName?.trim()) {
       return NextResponse.json(
@@ -70,6 +71,7 @@ export async function POST(req: NextRequest) {
       gymType, branchCount, address, openingYear,
       city, phone,                          // stored in JSONB — always safe
       plans, metrics, operations, marketing, aiPersonalization,
+      payment_config: paymentSettings || null,
       completedAt: new Date().toISOString(),
     }
 
@@ -151,6 +153,8 @@ export async function POST(req: NextRequest) {
         )
       }
 
+      targetGymId = newGym.id
+
       if (Array.isArray(plans) && plans.length > 0) {
         const monthly        = (plans as MembershipPlan[]).find(p => p.duration === 'monthly')?.price      ?? 1500
         const quarterly      = (plans as MembershipPlan[]).find(p => p.duration === 'quarterly')?.price   ?? 4000
@@ -161,6 +165,50 @@ export async function POST(req: NextRequest) {
         await adminClient.from('gym_plan_prices').upsert(
           { gym_id: newGym.id, monthly, quarterly, annual,
             joining_fee_monthly, joining_fee_quarterly, joining_fee_annual },
+          { onConflict: 'gym_id' }
+        )
+      }
+    }
+
+    // Upsert Online Payment (JazzCash / EasyPaisa / Raast) configuration if provided
+    if (targetGymId && paymentSettings) {
+      const primaryNumber =
+        paymentSettings.jazzcashNumber?.trim() ||
+        paymentSettings.easypaisaNumber?.trim() ||
+        paymentSettings.raastId?.trim() ||
+        ''
+      const primaryTitle =
+        paymentSettings.jazzcashTitle?.trim() ||
+        paymentSettings.easypaisaTitle?.trim() ||
+        paymentSettings.raastTitle?.trim() ||
+        gymName.trim()
+
+      if (primaryNumber) {
+        const defaultProvider = paymentSettings.jazzcashNumber?.trim()
+          ? 'jazzcash'
+          : paymentSettings.easypaisaNumber?.trim()
+          ? 'easypaisa'
+          : 'raast'
+
+        await adminClient.from('gym_upi_config').upsert(
+          {
+            gym_id: targetGymId,
+            upi_id: primaryNumber,
+            merchant_name: primaryTitle,
+            merchant_code: null,
+            currency: 'PKR',
+            raw_params: {
+              is_pakistan: true,
+              default_provider: defaultProvider,
+              jazzcash_number: paymentSettings.jazzcashNumber?.trim() || '',
+              jazzcash_title: paymentSettings.jazzcashTitle?.trim() || primaryTitle,
+              easypaisa_number: paymentSettings.easypaisaNumber?.trim() || '',
+              easypaisa_title: paymentSettings.easypaisaTitle?.trim() || primaryTitle,
+              raast_id: paymentSettings.raastId?.trim() || '',
+              raast_title: paymentSettings.raastTitle?.trim() || primaryTitle,
+            },
+            updated_at: new Date().toISOString(),
+          },
           { onConflict: 'gym_id' }
         )
       }
