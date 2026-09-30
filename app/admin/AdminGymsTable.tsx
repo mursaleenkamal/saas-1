@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Dumbbell, Search, CheckCircle2, Ban, ShieldCheck, Phone, Calendar } from 'lucide-react'
+import { Dumbbell, Search, CheckCircle2, Ban, ShieldCheck, Phone, Calendar, Eye, Copy, X, Building2, ExternalLink } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 interface GymRow {
@@ -18,6 +18,7 @@ export default function AdminGymsTable({ initialGyms }: { initialGyms: GymRow[] 
   const [gyms, setGyms] = useState<GymRow[]>(initialGyms)
   const [search, setSearch] = useState('')
   const [loadingId, setLoadingId] = useState<string | null>(null)
+  const [selectedGym, setSelectedGym] = useState<GymRow | null>(null)
 
   const toggleGymStatus = async (gym: GymRow) => {
     const nextState = !gym.is_active
@@ -161,21 +162,32 @@ export default function AdminGymsTable({ initialGyms }: { initialGyms: GymRow[] 
                     </span>
                   </td>
                   <td className="py-4 px-6 text-right">
-                    <button
-                      onClick={() => toggleGymStatus(gym)}
-                      disabled={loadingId === gym.id}
-                      className={`px-3 py-1.5 rounded-xl font-semibold text-xs transition-all shadow-sm ${
-                        gym.is_active
-                          ? 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-200/80'
-                          : 'bg-emerald-600 text-white hover:bg-emerald-700'
-                      } disabled:opacity-50`}
-                    >
-                      {loadingId === gym.id
-                        ? 'Updating...'
-                        : gym.is_active
-                        ? 'Suspend Gym'
-                        : 'Reactivate'}
-                    </button>
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => setSelectedGym(gym)}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl font-semibold text-xs bg-slate-100 text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition-all border border-slate-200/80 shadow-sm"
+                        title="View Details"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>View</span>
+                      </button>
+
+                      <button
+                        onClick={() => toggleGymStatus(gym)}
+                        disabled={loadingId === gym.id}
+                        className={`px-3 py-1.5 rounded-xl font-semibold text-xs transition-all shadow-sm ${
+                          gym.is_active
+                            ? 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-200/80'
+                            : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                        } disabled:opacity-50`}
+                      >
+                        {loadingId === gym.id
+                          ? 'Updating...'
+                          : gym.is_active
+                          ? 'Suspend'
+                          : 'Reactivate'}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -183,6 +195,132 @@ export default function AdminGymsTable({ initialGyms }: { initialGyms: GymRow[] 
           </tbody>
         </table>
       </div>
+
+      {/* Gym Details Modal */}
+      {selectedGym && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                  <Building2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">{selectedGym.name}</h3>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    {selectedGym.is_active ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Active Account
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-red-700">
+                        <Ban className="w-3 h-3 text-red-600" /> Suspended Account
+                      </span>
+                    )}
+                    <span className="text-slate-300">•</span>
+                    {getSubBadge(selectedGym.subscription_status)}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedGym(null)}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content Details */}
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Gym Database ID</p>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="font-mono text-xs text-slate-700 truncate mr-2">{selectedGym.id}</span>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(selectedGym.id)
+                        toast.success('Gym ID copied!')
+                      }}
+                      className="text-slate-400 hover:text-indigo-600 p-1"
+                      title="Copy ID"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Owner User ID</p>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="font-mono text-xs text-slate-700 truncate mr-2">{selectedGym.owner_id}</span>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(selectedGym.owner_id)
+                        toast.success('Owner ID copied!')
+                      }}
+                      className="text-slate-400 hover:text-indigo-600 p-1"
+                      title="Copy Owner ID"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between py-2 border-b border-slate-100 text-xs">
+                  <span className="font-semibold text-slate-500">Contact Phone</span>
+                  <span className="font-bold text-slate-800">{selectedGym.phone || 'Not provided'}</span>
+                </div>
+
+                <div className="flex items-center justify-between py-2 border-b border-slate-100 text-xs">
+                  <span className="font-semibold text-slate-500">Registration Date</span>
+                  <span className="font-bold text-slate-800">
+                    {new Date(selectedGym.created_at).toLocaleDateString('en-US', {
+                      month: 'long',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between py-2 border-b border-slate-100 text-xs">
+                  <span className="font-semibold text-slate-500">Platform Access Status</span>
+                  <span className={`font-bold ${selectedGym.is_active ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {selectedGym.is_active ? 'Allowed to log in' : 'Access blocked / Suspended'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+              <button
+                onClick={() => {
+                  toggleGymStatus(selectedGym)
+                  setSelectedGym(null)
+                }}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                  selectedGym.is_active
+                    ? 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-200'
+                    : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                }`}
+              >
+                {selectedGym.is_active ? 'Suspend Gym Access' : 'Reactivate Gym Access'}
+              </button>
+
+              <button
+                onClick={() => setSelectedGym(null)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-200/60 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

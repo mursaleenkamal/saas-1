@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
-import { Activity, Users, Dumbbell, MapPin } from 'lucide-react'
+import { Activity, Users, Dumbbell, MapPin, Headphones, ArrowRight } from 'lucide-react'
+import Link from 'next/link'
 import AdminDashboardRealtime from './AdminDashboardRealtime'
 import AdminGymsTable from './AdminGymsTable'
 
@@ -18,6 +19,7 @@ export default async function AdminPage() {
     { count: trialGyms },
     { count: activeGyms },
     { count: expiredGyms },
+    { count: openTickets },
     { data: gymsData },
   ] = await Promise.all([
     supabase.from('gyms').select('*', { count: 'exact', head: true }),
@@ -28,6 +30,7 @@ export default async function AdminPage() {
     supabase.from('gyms').select('*', { count: 'exact', head: true }).eq('subscription_status', 'trial'),
     supabase.from('gyms').select('*', { count: 'exact', head: true }).eq('subscription_status', 'active'),
     supabase.from('gyms').select('*', { count: 'exact', head: true }).eq('subscription_status', 'expired'),
+    supabase.from('support_tickets').select('*', { count: 'exact', head: true }).eq('status', 'open'),
     supabase.from('gyms').select('id, name, owner_id, phone, is_active, subscription_status, created_at').order('created_at', { ascending: false }),
   ])
 
@@ -35,11 +38,37 @@ export default async function AdminPage() {
     { label: 'Total Registered Gyms', value: totalGyms ?? 0, icon: Dumbbell, color: 'text-blue-600', bg: 'bg-blue-100' },
     { label: 'Total Members (Platform)', value: totalMembers ?? 0, icon: Users, color: 'text-indigo-600', bg: 'bg-indigo-100' },
     { label: 'Learned Geo Aliases', value: totalGeoAliases ?? 0, icon: MapPin, color: 'text-emerald-600', bg: 'bg-emerald-100' },
-    { label: 'Pending Geo Reviews', value: pendingGeoReviews ?? 0, icon: Activity, color: 'text-amber-600', bg: 'bg-amber-100' },
+    { label: 'Open Support Tickets', value: openTickets ?? 0, icon: Headphones, color: 'text-red-600', bg: 'bg-red-100' },
   ]
 
   return (
     <div className="space-y-8">
+      {/* Alert banner for open tickets */}
+      {openTickets && openTickets > 0 ? (
+        <div className="bg-gradient-to-r from-red-600 to-indigo-700 rounded-2xl p-4 sm:p-5 text-white shadow-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
+              <Headphones className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <p className="font-extrabold text-sm sm:text-base">
+                {openTickets} Client Support {openTickets === 1 ? 'Ticket' : 'Tickets'} Awaiting Action
+              </p>
+              <p className="text-xs text-white/80 mt-0.5">
+                Client has submitted issues or questions that require Super Admin resolution.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/admin/support"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white text-slate-900 font-bold text-xs hover:bg-slate-100 transition-all shadow-sm whitespace-nowrap self-start sm:self-auto"
+          >
+            <span>View Tickets</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+      ) : null}
+
       <div>
         <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Platform Overview</h2>
         <p className="text-slate-500 mt-1 text-sm">Real-time aggregate metrics across all multi-tenant fitness centers.</p>
