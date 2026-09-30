@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { verifySuperAdmin } from '@/lib/admin-auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,11 +20,8 @@ function validatePasswordStrength(password: string): string | null {
 
 export async function POST(req: NextRequest) {
   try {
-    const authHeader = req.headers.get('authorization')
-    const token = authHeader?.split(' ')[1]
-    const validPassword = process.env.ADMIN_PASSWORD
-
-    if (!token || token !== validPassword) {
+    const isAuthorized = await verifySuperAdmin(req)
+    if (!isAuthorized) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

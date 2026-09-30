@@ -1,0 +1,28 @@
+{
+  "app_name": "GymFlow",
+  "product_type": "Multi-Tenant B2B Gym Management SaaS Platform",
+  "local_path": "D:\\GymFlow-Gym-Management-SaaS-Platform",
+  "version": "0.1.0",
+  "tech_stack": {
+    "frontend": "Next.js 15 (App Router, Server Components, Turbopack)",
+    "language": "TypeScript 5 (Strict Mode)",
+    "styling": "Tailwind CSS 3, Framer Motion, Sora Font",
+    "backend": "Supabase (PostgreSQL 15, Auth, RLS, Realtime)",
+    "caching": "Upstash Redis (Serverless REST Caching)",
+    "ai_engine": "Google Gemini 2.0 Flash (Geo Locality & Intelligent Fallbacks)",
+    "messaging": "Meta WhatsApp Cloud API (Automated Dues & Renewal Alerts)",
+    "payments": "Multi-Region (Pakistan: JazzCash, EasyPaisa, Raast QR, CNIC; India: UPI QR, Cash)",
+    "reporting": "Recharts 3, jsPDF, ExcelJS",
+    "observability": "Pino APM Logger, Sentry, Vitest"
+  },
+  "deployment": {
+    "web": "Vercel / Next.js Production Server",
+    "database": "Supabase Cloud Database",
+    "tunnel": "Cloudflare Tunnel (localhost:3004)"
+  },
+  "roles": {
+    "super_admin": "Global system oversight & gym management",
+    "gym_owner": "Gym operations, member CRUD, dues collection, WhatsApp broadcasts",
+    "trainer_staff": "Attendance check-in & member view"
+  }
+}

@@ -2,7 +2,18 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { BarChart3, CreditCard, LayoutDashboard, LogOut, ShieldAlert, Headphones } from 'lucide-react'
+import {
+  BarChart3,
+  CreditCard,
+  LayoutDashboard,
+  LogOut,
+  ShieldAlert,
+  Headphones,
+  Megaphone,
+  Compass,
+  ScrollText,
+  Settings,
+} from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 
@@ -25,9 +36,13 @@ export default function AdminHeader({ adminEmail }: { adminEmail: string }) {
 
   const navLinks = [
     { label: 'Overview', href: '/admin', icon: BarChart3 },
-    { label: 'Subscription Requests', href: '/admin/subscriptions', icon: CreditCard },
-    { label: 'Support Tickets', href: '/admin/support', icon: Headphones },
-    { label: 'Gym App View', href: '/dashboard', icon: LayoutDashboard },
+    { label: 'Subscriptions', href: '/admin/subscriptions', icon: CreditCard },
+    { label: 'Support', href: '/admin/support', icon: Headphones },
+    { label: 'Broadcasts', href: '/admin/broadcasts', icon: Megaphone },
+    { label: 'Geo Reviews', href: '/admin/geo', icon: Compass },
+    { label: 'Audit Logs', href: '/admin/logs', icon: ScrollText },
+    { label: 'Settings', href: '/admin/settings', icon: Settings },
+    { label: 'Gym View', href: '/dashboard', icon: LayoutDashboard },
   ]
 
   return (

@@ -90,6 +90,32 @@ export default async function AdminPage() {
         ))}
       </div>
 
+      {/* Alert banner for pending geo reviews */}
+      {pendingGeoReviews && pendingGeoReviews > 0 ? (
+        <div className="bg-gradient-to-r from-emerald-600 to-teal-700 rounded-2xl p-4 sm:p-5 text-white shadow-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
+              <MapPin className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <p className="font-extrabold text-sm sm:text-base">
+                {pendingGeoReviews} Locality Address {pendingGeoReviews === 1 ? 'Review' : 'Reviews'} Pending
+              </p>
+              <p className="text-xs text-white/80 mt-0.5">
+                New member addresses from tenant imports need canonical approval in the address matching queue.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/admin/geo"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white text-slate-900 font-bold text-xs hover:bg-slate-100 transition-all shadow-sm whitespace-nowrap self-start sm:self-auto"
+          >
+            <span>Review Queue</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+      ) : null}
+
       {/* Subscription Stats — realtime */}
       <AdminDashboardRealtime
         initial={{
