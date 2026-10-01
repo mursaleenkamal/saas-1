@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import { EditMembersClient } from './BulkEditClient'
 import { redirect } from 'next/navigation'
 
+export const dynamic = 'force-dynamic'
+
 export default async function EditMembersPage() {
   const { getAuthUser, getGym } = await import('@/lib/dal')
   const { user } = await getAuthUser()

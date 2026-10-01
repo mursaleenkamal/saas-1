@@ -193,26 +193,34 @@ export function EditMembersClient({ members, gymId }: Props) {
       // succeeds, so we never cancel a cycle for a row that failed to save.
       const duesCleared: { memberId: string; phone: string }[] = []
 
-      for (const { original, edited } of changes) {
-        const newPending = parseInt(edited.pending_amount) || 0
-        const { error: err } = await supabase
-          .from('members')
-          .update({
-            member_number: parseInt(edited.member_number) || original.member_number,
-            name: edited.name.trim(),
-            phone: edited.phone.trim(),
-            gender: edited.gender || null,
-            age: edited.age ? parseInt(edited.age) : null,
-            area: edited.area.trim() || null,
-            pending_amount: newPending,
-          })
-          .eq('id', original.id)
-        if (err) throw new Error(`Failed to update ${original.name}: ${err.message}`)
+      // Batch in parallel chunks of 10 to prevent browser hanging on large edits
+      const CHUNK_SIZE = 10
+      for (let i = 0; i < changes.length; i += CHUNK_SIZE) {
+        const chunk = changes.slice(i, i + CHUNK_SIZE)
+        await Promise.all(
+          chunk.map(async ({ original, edited }) => {
+            const newPending = parseInt(edited.pending_amount) || 0
+            const { error: err } = await supabase
+              .from('members')
+              .update({
+                member_number: parseInt(edited.member_number) || original.member_number,
+                name: edited.name.trim(),
+                phone: edited.phone.trim(),
+                gender: edited.gender || null,
+                age: edited.age ? parseInt(edited.age) : null,
+                area: edited.area.trim() || null,
+                pending_amount: newPending,
+              })
+              .eq('id', original.id)
 
-        const phone = edited.phone.trim()
-        if ((original.pending_amount ?? 0) > 0 && newPending === 0 && phone.replace(/\D/g, '').length >= 10) {
-          duesCleared.push({ memberId: original.id, phone })
-        }
+            if (err) throw new Error(`Failed to update ${original.name}: ${err.message}`)
+
+            const phone = edited.phone.trim()
+            if ((original.pending_amount ?? 0) > 0 && newPending === 0 && phone.replace(/\D/g, '').length >= 10) {
+              duesCleared.push({ memberId: original.id, phone })
+            }
+          })
+        )
       }
       const { invalidateMembersCache } = await import('../actions')
       const cacheResult = await invalidateMembersCache(gymId)

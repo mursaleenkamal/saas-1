@@ -71,6 +71,13 @@ function MembersContent({ members, gymId, totalCount }: Props) {
   const [loadingMore, setLoadingMore] = useState(false)
   const hasMore = membersList.length < totalCount
 
+  // Keep membersList in sync when server re-renders or navigates
+  useEffect(() => {
+    if (members) {
+      setMembersList(members)
+    }
+  }, [members])
+
   // Issue 5 fix: Memoize duplicate detection to avoid recalculation on every render
   const duplicateIds = useMemo(() => {
     const numCount = membersList.reduce((acc, m) => {

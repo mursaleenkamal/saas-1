@@ -413,6 +413,7 @@ export async function invalidateMembersCache(gymId: string) {
     // Bust all affected caches in parallel instead of four sequential awaits.
     await Promise.all([
       deleteCache(cacheKeys.membersList(gymId)),
+      deleteCache(cacheKeys.duesList(gymId)),
       deleteCache(cacheKeys.dashboard(gymId, format(new Date(), 'yyyy-MM-dd'))),
       deleteCache(cacheKeys.payments12mo(gymId)),
       deleteCache(cacheKeys.paymentsAll(gymId)),

@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import { MessageCircle, Check, Banknote, AlertCircle, QrCode } from 'lucide-react'
+import { useState, useMemo, useEffect } from 'react'
+import { MessageCircle, Check, Banknote, AlertCircle, QrCode, RefreshCw } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { toast } from 'react-hot-toast'
 import { collectDuePaymentAction } from '@/app/payments/actions'
 import UPIPaymentModal from '@/components/upi/UPIPaymentModal'
+import { useRouter } from 'next/navigation'
 
 interface DueMember {
   id: string
@@ -17,36 +18,61 @@ interface DueMember {
 }
 
 interface Props {
-  members: DueMember[]
+  members?: DueMember[]
   gymId: string
-  totalDues: number
+  totalDues?: number
 }
 
-export function DuesClient({ members: initialMembers, gymId, totalDues }: Props) {
-  const [members, setMembers] = useState(initialMembers)
+export function DuesClient({ members: initialMembers = [], gymId, totalDues = 0 }: Props) {
+  const router = useRouter()
+  const [members, setMembers] = useState<DueMember[]>(initialMembers || [])
   const [paying, setPaying] = useState<string | null>(null)
   const [payAmount, setPayAmount] = useState('')
   const [payMode, setPayMode] = useState<string>('cash')
   const [searchQuery, setSearchQuery] = useState('')
   const [collecting, setCollecting] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
   const [showQRModal, setShowQRModal] = useState(false)
   const [activeDueMember, setActiveDueMember] = useState<DueMember | null>(null)
 
+  // Sync state if server re-renders with fresh data
+  useEffect(() => {
+    if (initialMembers) {
+      setMembers(initialMembers)
+    }
+  }, [initialMembers])
+
+  // Live computed total that updates dynamically upon collection
+  const liveTotalDues = useMemo(() => {
+    if (!members || !Array.isArray(members)) return 0
+    return members.reduce((sum, m) => sum + (m.pending_amount || 0), 0)
+  }, [members])
+
   const filteredMembers = useMemo(() => {
-    if (!searchQuery) return members
-    const query = searchQuery.toLowerCase()
+    if (!members || !Array.isArray(members)) return []
+    if (!searchQuery.trim()) return members
+    const query = searchQuery.toLowerCase().trim()
     return members.filter(m =>
-      m.name.toLowerCase().includes(query) ||
-      m.phone.includes(query) ||
-      String(m.member_number).includes(query)
+      (m.name || '').toLowerCase().includes(query) ||
+      (m.phone || '').includes(query) ||
+      String(m.member_number || '').includes(query)
     )
   }, [members, searchQuery])
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    router.refresh()
+    setTimeout(() => {
+      setIsRefreshing(false)
+      toast.success('Dues refreshed')
+    }, 600)
+  }
 
   function buildDueWhatsApp(phone: string, name: string, amount: number) {
     const msg = encodeURIComponent(
       `Hi ${name}! 🏋️ You have a pending due of PKR ${amount.toLocaleString('en-PK')} at our gym. Please clear it at your earliest convenience. Thank you!`
     )
-    let clean = phone.replace(/\D/g, '')
+    let clean = (phone || '').replace(/\D/g, '')
     while (clean.startsWith('0')) {
       clean = clean.slice(1)
     }
@@ -98,12 +124,22 @@ export function DuesClient({ members: initialMembers, gymId, totalDues }: Props)
       {/* Header */}
       <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-3">
         <div className="flex items-center justify-between w-full xs:w-auto">
-          <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-slate-900">Fee Dues</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-slate-900">Fee Dues</h1>
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+              title="Refresh dues"
+            >
+              <RefreshCw className={cn("w-4 h-4", isRefreshing && "animate-spin text-brand-600")} />
+            </button>
+          </div>
           <div className="card px-3 xs:px-4 py-2 xs:py-2.5 flex items-center gap-2 xs:hidden">
             <AlertCircle className="w-4 h-4 text-red-500" />
             <div>
               <p className="text-xs text-slate-400">Total Pending</p>
-              <p className="text-sm xs:text-base font-bold text-red-600">{formatCurrency(totalDues)}</p>
+              <p className="text-sm xs:text-base font-bold text-red-600">{formatCurrency(liveTotalDues)}</p>
             </div>
           </div>
         </div>
@@ -120,13 +156,13 @@ export function DuesClient({ members: initialMembers, gymId, totalDues }: Props)
             <AlertCircle className="w-4 h-4 text-red-500" />
             <div>
               <p className="text-xs text-slate-400">Total Pending</p>
-              <p className="text-sm xs:text-base font-bold text-red-600">{formatCurrency(totalDues)}</p>
+              <p className="text-sm xs:text-base font-bold text-red-600">{formatCurrency(liveTotalDues)}</p>
             </div>
           </div>
         </div>
       </div>
 
-      {members.length === 0 ? (
+      {(!members || members.length === 0) ? (
         <div className="card p-12 text-center">
           <p className="text-3xl mb-2">🎉</p>
           <p className="text-slate-500 font-medium">No pending dues!</p>

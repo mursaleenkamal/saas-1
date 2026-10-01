@@ -4,6 +4,8 @@ import { cacheWrapper } from '@/lib/cache'
 import { PaymentsClient } from './PaymentsClient'
 import { subMonths, format } from 'date-fns'
 
+export const dynamic = 'force-dynamic'
+
 export default async function PaymentsPage() {
   const { user } = await getAuthUser()
   if (!user) return null

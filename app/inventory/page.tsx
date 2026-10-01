@@ -4,6 +4,8 @@ import { Plus, Package } from 'lucide-react'
 import InventoryFilters from '@/components/inventory/InventoryFilters'
 import { getCachedInventory } from '@/lib/api/inventory'
 
+export const dynamic = 'force-dynamic'
+
 export default async function InventoryPage(props: { searchParams?: Promise<{ query?: string, category?: string }> }) {
   const searchParams = await props.searchParams;
   const query = searchParams?.query || '';

@@ -11,6 +11,7 @@ import toast from 'react-hot-toast'
 
 import TrialBanner from './TrialBanner'
 import { computeSubscriptionState } from '@/lib/subscription-utils'
+import AdminNotificationPopup, { AdminMessage } from '@/components/support/AdminNotificationPopup'
 
 const SHELL_EXCLUDED = ['/auth/', '/onboarding', '/subscription', '/admin']
 const SIDEBAR_KEY = 'gymflow_sidebar_collapsed'
@@ -40,9 +41,19 @@ interface ShellGuardProps {
   initialUnreadCount: number
   initialSubscriptionStatus: string
   initialTrialDaysLeft: number
+  initialUnreadMessages?: AdminMessage[]
 }
 
-export default function ShellGuard({ children, initialUser, initialGym, initialIsActive, initialUnreadCount, initialSubscriptionStatus, initialTrialDaysLeft }: ShellGuardProps) {
+export default function ShellGuard({
+  children,
+  initialUser,
+  initialGym,
+  initialIsActive,
+  initialUnreadCount,
+  initialSubscriptionStatus,
+  initialTrialDaysLeft,
+  initialUnreadMessages = [],
+}: ShellGuardProps) {
   const pathname = usePathname()
   const isShellless = SHELL_EXCLUDED.some(p => pathname.startsWith(p))
 
@@ -309,6 +320,12 @@ export default function ShellGuard({ children, initialUser, initialGym, initialI
 
       {/* ── Mobile nav ── */}
       <MobileNav />
+
+      {/* ── Admin Announcements & Action Required Popup ── */}
+      <AdminNotificationPopup
+        gymId={initialGym?.id}
+        initialMessages={initialUnreadMessages}
+      />
     </div>
   )
 }

@@ -31,32 +31,42 @@ export function DashboardClient({ gymName, stats, expiringMembers, gymId }: Prop
     if (expiringFilter === 'month' && monthMembers === null && !fetchingMonth) {
       setFetchingMonth(true)
       const fetchMonth = async () => {
-        const todayStr = format(new Date(), 'yyyy-MM-dd')
+        try {
+          const todayStr = format(new Date(), 'yyyy-MM-dd')
 
-        // Issue 4 fix: Added server-side date filter — only fetch memberships expiring THIS month.
-        // Previously fetched ALL memberships for the gym (full table scan), which could be
-        // thousands of rows for older gyms. Now filtered at the DB level.
-        const currentMonth = todayStr.slice(0, 7) // e.g. "2026-06"
-        const monthStart = `${currentMonth}-01`
-        const monthEnd = `${currentMonth}-31` // Postgres clamps to last valid day
+          // Issue 4 fix: Added server-side date filter — only fetch memberships expiring THIS month.
+          // Previously fetched ALL memberships for the gym (full table scan), which could be
+          // thousands of rows for older gyms. Now filtered at the DB level.
+          const currentMonth = todayStr.slice(0, 7) // e.g. "2026-06"
+          const monthStart = `${currentMonth}-01`
+          const monthEnd = `${currentMonth}-31` // Postgres clamps to last valid day
 
-        const { data: membershipsData } = await supabase
-          .from('memberships')
-          .select('member_id, end_date, member:members(id, name, phone, member_number)')
-          .eq('gym_id', gymId)
-          .gte('end_date', monthStart)
-          .lte('end_date', monthEnd)
-          .order('end_date', { ascending: true })
+          const { data: membershipsData, error } = await supabase
+            .from('memberships')
+            .select('member_id, end_date, member:members(id, name, phone, member_number)')
+            .eq('gym_id', gymId)
+            .gte('end_date', monthStart)
+            .lte('end_date', monthEnd)
+            .order('end_date', { ascending: true })
 
-        const memberMap = new Map<string, any>()
-        for (const m of membershipsData ?? []) {
-          if (!m.member || memberMap.has(m.member_id)) continue
-          const daysRemaining = Math.ceil((new Date(m.end_date).getTime() - new Date(todayStr).getTime()) / (1000 * 60 * 60 * 24))
-          memberMap.set(m.member_id, { ...(m.member as any), latest_membership: m, days_remaining: daysRemaining })
+          if (error) {
+            console.error('Failed to fetch month expiring members:', error)
+          }
+
+          const memberMap = new Map<string, any>()
+          for (const m of membershipsData ?? []) {
+            if (!m.member || memberMap.has(m.member_id)) continue
+            const daysRemaining = Math.ceil((new Date(m.end_date).getTime() - new Date(todayStr).getTime()) / (1000 * 60 * 60 * 24))
+            memberMap.set(m.member_id, { ...(m.member as any), latest_membership: m, days_remaining: daysRemaining })
+          }
+
+          setMonthMembers(Array.from(memberMap.values()).sort((a, b) => a.days_remaining - b.days_remaining))
+        } catch (err) {
+          console.error('Error fetching month expiring members:', err)
+          setMonthMembers([])
+        } finally {
+          setFetchingMonth(false)
         }
-
-        setMonthMembers(Array.from(memberMap.values()).sort((a, b) => a.days_remaining - b.days_remaining))
-        setFetchingMonth(false)
       }
       fetchMonth()
     }

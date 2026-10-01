@@ -98,44 +98,44 @@ export default function AccountMenu({ initialEmail, initialGymId, initialGymName
         'broadcast',
         { event: 'admin_message' },
         async (payload: any) => {
-          // Re-fetch unread count
-          const { count } = await supabase
-            .from('admin_messages')
-            .select('*', { count: 'exact', head: true })
-            .eq('gym_id', gymId)
-            .is('read_at', null)
-            
-          setUnreadCount(count ?? 0)
-
-          const msgId = payload.payload?.id
-          if (msgId) {
-            // Fetch the message securely via standard RLS
-            const { data: newMessage } = await supabase
-              .from('admin_messages')
-              .select('id, subject, body')
-              .eq('id', msgId)
-              .single()
-
-            if (newMessage) {
-              setToastMessage({
-                id: newMessage.id,
-                title: newMessage.subject || 'New Support Message',
-                body: newMessage.body
-              })
-              // Hide toast after 6 seconds
-              setTimeout(() => {
-                setToastMessage(prev => prev?.id === newMessage.id ? null : prev)
-              }, 6000)
-            }
-          }
+          fetchUnread()
+        }
+      )
+      .on(
+        'broadcast',
+        { event: 'new_admin_message' },
+        async (payload: any) => {
+          fetchUnread()
         }
       )
       .subscribe()
+
+    async function fetchUnread() {
+      const { count } = await supabase
+        .from('admin_messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('gym_id', gymId)
+        .is('read_at', null)
+      setUnreadCount(count ?? 0)
+    }
 
     return () => {
       supabase.removeChannel(channel)
     }
   }, [gymId, supabase])
+
+  // Sync when notifications are acknowledged/read via popup
+  useEffect(() => {
+    const handleRead = (e: any) => {
+      if (e.detail?.all) {
+        setUnreadCount(0)
+      } else {
+        setUnreadCount((prev) => Math.max(0, prev - 1))
+      }
+    }
+    window.addEventListener('gymflow:admin_message_read', handleRead)
+    return () => window.removeEventListener('gymflow:admin_message_read', handleRead)
+  }, [])
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {

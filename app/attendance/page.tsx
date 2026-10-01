@@ -5,6 +5,8 @@ import { format } from 'date-fns'
 
 import { cacheWrapper } from '@/lib/cache'
 
+export const dynamic = 'force-dynamic'
+
 export default async function AttendancePage() {
   const { user } = await getAuthUser()
   if (!user) return null

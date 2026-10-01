@@ -24,4 +24,5 @@ graphify-out
 .local-db/
 cloudflared.exe
 *.exe
+*.tsbuildinfo
 .env*
