@@ -20,9 +20,10 @@ interface Props {
   status: MemberStatus
   daysRemaining: number
   gymName?: string
+  gymPlans?: any[]
 }
 
-export function MemberDetailClient({ member, memberships, attendance, status, daysRemaining, gymName }: Props) {
+export function MemberDetailClient({ member, memberships, attendance, status, daysRemaining, gymName, gymPlans }: Props) {
   const [showRenewForm, setShowRenewForm] = useState(false)
   const [showWhatsApp, setShowWhatsApp] = useState(false)
   const [whatsAppTemplate, setWhatsAppTemplate] = useState<TemplateId>('_gymflow_welcome_member')
@@ -36,12 +37,37 @@ export function MemberDetailClient({ member, memberships, attendance, status, da
     return today
   }
 
+  const getPlanPrice = (plan: Plan) => {
+    // 1. If matching latestMembership plan, use latestMembership.amount
+    if (latestMembership && latestMembership.plan === plan && latestMembership.amount > 0) {
+      return latestMembership.amount
+    }
+    // 2. Look up in gymPlans by duration and category
+    const cat = latestMembership?.category || 'both'
+    const matched = (gymPlans || []).find((p: any) => p.duration === plan && (p.category || 'both') === cat)
+    if (matched?.price) return matched.price
+    const fallback = (gymPlans || []).find((p: any) => p.duration === plan)
+    if (fallback?.price) return fallback.price
+
+    // 3. Fallbacks
+    if (plan === 'monthly') return 1500
+    if (plan === 'quarterly') return 4000
+    if (plan === 'annual') return 15000
+    return 1500
+  }
+
+  const initialPlan = (latestMembership?.plan as Plan) || 'monthly'
+  const initialAmount = latestMembership?.amount ? String(latestMembership.amount) : String(getPlanPrice(initialPlan))
+  const initialPending = member.pending_amount > 0 
+    ? String(member.pending_amount) 
+    : (latestMembership?.due_amount ? String(latestMembership.due_amount) : '')
+
   const [renewForm, setRenewForm] = useState({
-    plan: 'monthly' as Plan,
-    custom_months: '',
+    plan: initialPlan,
+    custom_months: latestMembership?.plan === 'custom' ? '1' : '',
     start_date: getSuggestedStartDate(),
-    amount: '',
-    pending_amount: '',
+    amount: initialAmount,
+    pending_amount: initialPending,
     payment_mode: 'cash' as PaymentMode,
   })
   const [loading, setLoading] = useState(false)
@@ -51,13 +77,30 @@ export function MemberDetailClient({ member, memberships, attendance, status, da
 
   function toggleRenewForm() {
     if (!showRenewForm) {
+      const plan = (latestMembership?.plan as Plan) || 'monthly'
+      const amount = latestMembership?.amount ? String(latestMembership.amount) : String(getPlanPrice(plan))
+      const pending = member.pending_amount > 0 
+        ? String(member.pending_amount) 
+        : (latestMembership?.due_amount ? String(latestMembership.due_amount) : '')
+
       setRenewForm(prev => ({
         ...prev,
+        plan,
         start_date: getSuggestedStartDate(),
-        pending_amount: '',
+        amount,
+        pending_amount: pending,
       }))
     }
     setShowRenewForm(!showRenewForm)
+  }
+
+  function handleSelectPlan(plan: Plan) {
+    const price = getPlanPrice(plan)
+    setRenewForm(p => ({
+      ...p,
+      plan,
+      amount: String(price),
+    }))
   }
 
   const calculatedEndDate = renewForm.start_date
@@ -80,14 +123,12 @@ export function MemberDetailClient({ member, memberships, attendance, status, da
     setLoading(true)
     setError('')
     try {
-      // member.gym_id is already known — no need to re-auth + re-query the gym,
-      // which added two network round trips to the renewal critical path.
       const gymId = member.gym_id
       const renewalFee = parseInt(renewForm.amount) || 0
       const renewalPending = parseInt(renewForm.pending_amount) || 0
 
-      if (renewalPending > renewalFee) {
-        throw new Error('Remaining due amount cannot be greater than the plan fee.')
+      if (renewalFee <= 0) {
+        throw new Error('Please enter a valid plan fee.')
       }
       if (renewalPending < 0) {
         throw new Error('Remaining due amount cannot be negative.')
@@ -107,17 +148,14 @@ export function MemberDetailClient({ member, memberships, attendance, status, da
       })
       if (err) throw err
 
-      // If renewal has a remaining/due amount, increment member's total pending dues
-      if (renewalPending > 0) {
-        const newTotalPending = (member.pending_amount || 0) + renewalPending
-        const { error: memberUpdateErr } = await supabase
-          .from('members')
-          .update({ pending_amount: newTotalPending })
-          .eq('id', member.id)
+      // Update member pending_amount to reflect the updated due balance
+      const { error: memberUpdateErr } = await supabase
+        .from('members')
+        .update({ pending_amount: renewalPending })
+        .eq('id', member.id)
 
-        if (memberUpdateErr) {
-          console.error('Failed to update member pending amount:', memberUpdateErr)
-        }
+      if (memberUpdateErr) {
+        console.error('Failed to update member pending amount:', memberUpdateErr)
       }
 
       // Auto-send renewal confirmation + cancel old expiry reminder cycles
@@ -316,15 +354,30 @@ export function MemberDetailClient({ member, memberships, attendance, status, da
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Plan</label>
               <div className="grid grid-cols-4 gap-2">
-                {(['monthly', 'quarterly', 'annual', 'custom'] as Plan[]).map((plan) => (
-                  <button key={plan} type="button" onClick={() => setRenewForm(p => ({ ...p, plan }))}
-                    className={`py-2.5 rounded-xl border-2 text-sm font-semibold transition-all text-center ${
-                      renewForm.plan === plan ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-slate-200 bg-white text-slate-500'
-                    }`}
-                  >
-                    {plan === 'monthly' ? '1M' : plan === 'quarterly' ? '3M' : plan === 'annual' ? '12M' : 'Custom'}
-                  </button>
-                ))}
+                {(['monthly', 'quarterly', 'annual', 'custom'] as Plan[]).map((plan) => {
+                  const price = getPlanPrice(plan)
+                  return (
+                    <button
+                      key={plan}
+                      type="button"
+                      onClick={() => handleSelectPlan(plan)}
+                      className={`py-2 px-1 rounded-xl border-2 text-sm font-semibold transition-all text-center ${
+                        renewForm.plan === plan
+                          ? 'border-brand-500 bg-brand-50 text-brand-700'
+                          : 'border-slate-200 bg-white text-slate-500'
+                      }`}
+                    >
+                      <span className="block font-bold">
+                        {plan === 'monthly' ? '1M' : plan === 'quarterly' ? '3M' : plan === 'annual' ? '12M' : 'Custom'}
+                      </span>
+                      {plan !== 'custom' && price > 0 && (
+                        <span className="block text-[10px] font-normal mt-0.5 opacity-70">
+                          PKR {price.toLocaleString('en-PK')}
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
               </div>
               {renewForm.plan === 'custom' && (
                 <div className="mt-2 flex items-center gap-2">
@@ -395,9 +448,16 @@ export function MemberDetailClient({ member, memberships, attendance, status, da
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
-                  Remaining / Due (PKR) <span className="text-slate-400 font-normal">opt</span>
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
+                    Remaining / Due (PKR) <span className="text-slate-400 font-normal">opt</span>
+                  </label>
+                  {member.pending_amount > 0 && (
+                    <span className="text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded">
+                      Current Due: {formatCurrency(member.pending_amount)}
+                    </span>
+                  )}
+                </div>
                 <input
                   type="number"
                   value={renewForm.pending_amount}
@@ -405,7 +465,6 @@ export function MemberDetailClient({ member, memberships, attendance, status, da
                   className="input-field"
                   placeholder="0"
                   min="0"
-                  max={renewForm.amount || undefined}
                 />
               </div>
             </div>
@@ -414,12 +473,19 @@ export function MemberDetailClient({ member, memberships, attendance, status, da
             {parseInt(renewForm.amount) > 0 && (
               <div className="bg-brand-50/70 border border-brand-100 rounded-xl px-4 py-3 space-y-1.5 text-xs">
                 <div className="flex justify-between text-slate-600">
-                  <span>Plan Fee:</span>
+                  <span>Selected Package:</span>
+                  <span className="font-semibold text-slate-800">
+                    {renewForm.plan === 'monthly' ? '1 Month (Monthly)' : renewForm.plan === 'quarterly' ? '3 Months (Quarterly)' : renewForm.plan === 'annual' ? '1 Year (Annual)' : `${renewForm.custom_months || 1} Months (Custom)`}
+                    <span className="text-slate-400 font-normal ml-1">· {latestMembership?.category === 'both' || !latestMembership?.category ? 'Strength + Cardio' : latestMembership.category}</span>
+                  </span>
+                </div>
+                <div className="flex justify-between text-slate-600">
+                  <span>Package Fee:</span>
                   <span className="font-semibold text-slate-800">{formatCurrency(parseInt(renewForm.amount) || 0)}</span>
                 </div>
                 {(parseInt(renewForm.pending_amount) || 0) > 0 && (
                   <div className="flex justify-between text-red-600">
-                    <span>Remaining (Overdue) Due:</span>
+                    <span>Remaining (Overdue) Balance:</span>
                     <span className="font-semibold">{formatCurrency(parseInt(renewForm.pending_amount) || 0)}</span>
                   </div>
                 )}
@@ -429,14 +495,6 @@ export function MemberDetailClient({ member, memberships, attendance, status, da
                     {formatCurrency(Math.max(0, (parseInt(renewForm.amount) || 0) - (parseInt(renewForm.pending_amount) || 0)))}
                   </span>
                 </div>
-                {member.pending_amount > 0 && (
-                  <div className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2 mt-2">
-                    Member already has {formatCurrency(member.pending_amount)} in previous unpaid dues.
-                    {(parseInt(renewForm.pending_amount) || 0) > 0 && (
-                      <span> Total dues will become <strong>{formatCurrency(member.pending_amount + (parseInt(renewForm.pending_amount) || 0))}</strong>.</span>
-                    )}
-                  </div>
-                )}
               </div>
             )}
             <div>
