@@ -52,6 +52,25 @@ export async function createMemberAction(input: CreateMemberInput) {
     const memberNumber = input.member_number
     if (!memberNumber) throw new Error('Member ID is required')
 
+    // Server-side check for duplicate CNIC within this gym
+    if (input.cnic && input.cnic.trim()) {
+      const formattedCnic = input.cnic.trim()
+      const rawCnic = formattedCnic.replace(/\D/g, '')
+      if (rawCnic.length === 13) {
+        const { data: existingCnic } = await supabase
+          .from('members')
+          .select('id, member_number, name')
+          .eq('gym_id', input.gymId)
+          .or(`cnic.eq.${formattedCnic},cnic.eq.${rawCnic}`)
+          .limit(1)
+          .maybeSingle()
+
+        if (existingCnic) {
+          throw new Error(`CNIC is already registered to ${existingCnic.name} (${formatMemberId(existingCnic.member_number)}). Rejoin their existing profile instead.`)
+        }
+      }
+    }
+
     // 1. Insert Member
     const memberPayload: any = {
       gym_id: input.gymId,

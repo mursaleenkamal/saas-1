@@ -26,11 +26,22 @@ export function MemberDetailClient({ member, memberships, attendance, status, da
   const [showRenewForm, setShowRenewForm] = useState(false)
   const [showWhatsApp, setShowWhatsApp] = useState(false)
   const [whatsAppTemplate, setWhatsAppTemplate] = useState<TemplateId>('_gymflow_welcome_member')
+  const latestMembership = memberships[0] ?? null
+
+  const getSuggestedStartDate = () => {
+    const today = format(new Date(), 'yyyy-MM-dd')
+    if (latestMembership?.end_date && latestMembership.end_date >= today) {
+      return latestMembership.end_date
+    }
+    return today
+  }
+
   const [renewForm, setRenewForm] = useState({
     plan: 'monthly' as Plan,
     custom_months: '',
-    start_date: format(new Date(), 'yyyy-MM-dd'),
+    start_date: getSuggestedStartDate(),
     amount: '',
+    pending_amount: '',
     payment_mode: 'cash' as PaymentMode,
   })
   const [loading, setLoading] = useState(false)
@@ -38,7 +49,25 @@ export function MemberDetailClient({ member, memberships, attendance, status, da
   const router = useRouter()
   const supabase = createClient()
 
-  const latestMembership = memberships[0] ?? null
+  function toggleRenewForm() {
+    if (!showRenewForm) {
+      setRenewForm(prev => ({
+        ...prev,
+        start_date: getSuggestedStartDate(),
+        pending_amount: '',
+      }))
+    }
+    setShowRenewForm(!showRenewForm)
+  }
+
+  const calculatedEndDate = renewForm.start_date
+    ? calcEndDate(
+        renewForm.start_date,
+        renewForm.plan,
+        renewForm.plan === 'custom' ? parseInt(renewForm.custom_months) || 1 : undefined
+      )
+    : null
+
 
   const statusConfig = {
     active:   { label: 'Active',        className: 'bg-emerald-100 text-emerald-700', bar: 'from-emerald-400 to-emerald-600' },
@@ -54,17 +83,42 @@ export function MemberDetailClient({ member, memberships, attendance, status, da
       // member.gym_id is already known — no need to re-auth + re-query the gym,
       // which added two network round trips to the renewal critical path.
       const gymId = member.gym_id
+      const renewalFee = parseInt(renewForm.amount) || 0
+      const renewalPending = parseInt(renewForm.pending_amount) || 0
+
+      if (renewalPending > renewalFee) {
+        throw new Error('Remaining due amount cannot be greater than the plan fee.')
+      }
+      if (renewalPending < 0) {
+        throw new Error('Remaining due amount cannot be negative.')
+      }
+
       const end_date = calcEndDate(renewForm.start_date, renewForm.plan, renewForm.plan === 'custom' ? parseInt(renewForm.custom_months) || 1 : undefined)
       const { error: err } = await supabase.from('memberships').insert({
         member_id: member.id,
         gym_id: gymId,
         plan: renewForm.plan,
+        category: latestMembership?.category || 'both',
         start_date: renewForm.start_date,
         end_date,
-        amount: parseInt(renewForm.amount),
+        amount: renewalFee,
+        due_amount: renewalPending,
         payment_mode: renewForm.payment_mode,
       })
       if (err) throw err
+
+      // If renewal has a remaining/due amount, increment member's total pending dues
+      if (renewalPending > 0) {
+        const newTotalPending = (member.pending_amount || 0) + renewalPending
+        const { error: memberUpdateErr } = await supabase
+          .from('members')
+          .update({ pending_amount: newTotalPending })
+          .eq('id', member.id)
+
+        if (memberUpdateErr) {
+          console.error('Failed to update member pending amount:', memberUpdateErr)
+        }
+      }
 
       // Auto-send renewal confirmation + cancel old expiry reminder cycles
       // (fire-and-forget — never blocks the save).
@@ -89,6 +143,11 @@ export function MemberDetailClient({ member, memberships, attendance, status, da
       await invalidateMembersCache(gymId)
 
       setShowRenewForm(false)
+      setRenewForm(prev => ({
+        ...prev,
+        amount: '',
+        pending_amount: '',
+      }))
       toast.success('Membership renewed successfully!')
       router.refresh()
     } catch (err: any) {
@@ -183,6 +242,13 @@ export function MemberDetailClient({ member, memberships, attendance, status, da
               />
             </>
           )}
+          {member.pending_amount > 0 && (
+            <InfoTile
+              label="Pending Due"
+              value={formatCurrency(member.pending_amount)}
+              highlight
+            />
+          )}
         </div>
       </div>
 
@@ -216,7 +282,7 @@ export function MemberDetailClient({ member, memberships, attendance, status, da
             </div>
           )
         )}
-        <button onClick={() => setShowRenewForm(!showRenewForm)}
+        <button onClick={toggleRenewForm}
           className="flex items-center justify-center gap-2 bg-gradient-to-r from-brand-500 to-brand-600 text-white py-3.5 rounded-2xl font-semibold text-sm shadow-md shadow-brand-200 active:scale-[0.98] transition-all"
         >
           <Plus className="w-4 h-4" />Renew
@@ -273,13 +339,106 @@ export function MemberDetailClient({ member, memberships, attendance, status, da
               )}
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Start Date</label>
-              <input type="date" value={renewForm.start_date} onChange={(e) => setRenewForm(p => ({ ...p, start_date: e.target.value }))} className="input-field" required />
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">Start Date</label>
+                {latestMembership?.end_date && latestMembership.end_date > format(new Date(), 'yyyy-MM-dd') && (
+                  renewForm.start_date === latestMembership.end_date ? (
+                    <button
+                      type="button"
+                      onClick={() => setRenewForm(p => ({ ...p, start_date: format(new Date(), 'yyyy-MM-dd') }))}
+                      className="text-[11px] font-medium text-brand-600 hover:text-brand-700 underline"
+                    >
+                      Start from Today instead
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setRenewForm(p => ({ ...p, start_date: latestMembership.end_date }))}
+                      className="text-[11px] font-medium text-brand-600 hover:text-brand-700 underline"
+                    >
+                      Continue from Expiry ({formatDate(latestMembership.end_date)})
+                    </button>
+                  )
+                )}
+              </div>
+              <input
+                type="date"
+                value={renewForm.start_date}
+                onChange={(e) => setRenewForm(p => ({ ...p, start_date: e.target.value }))}
+                className="input-field"
+                required
+              />
+              <div className="mt-1.5 flex items-center justify-between text-xs text-slate-500">
+                {latestMembership?.end_date && latestMembership.end_date >= format(new Date(), 'yyyy-MM-dd') && renewForm.start_date === latestMembership.end_date ? (
+                  <span className="text-emerald-600 font-medium">✓ Continuing from current expiry</span>
+                ) : (
+                  <span>Starts on selected date</span>
+                )}
+                {calculatedEndDate && (
+                  <span>New Expiry: <strong className="text-slate-800">{formatDate(calculatedEndDate)}</strong></span>
+                )}
+              </div>
             </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Amount (PKR)</label>
-              <input type="number" value={renewForm.amount} onChange={(e) => setRenewForm(p => ({ ...p, amount: e.target.value }))} className="input-field" placeholder="1500" required />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
+                  Plan Fee (PKR) *
+                </label>
+                <input
+                  type="number"
+                  value={renewForm.amount}
+                  onChange={(e) => setRenewForm(p => ({ ...p, amount: e.target.value }))}
+                  className="input-field"
+                  placeholder="1500"
+                  min="0"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
+                  Remaining / Due (PKR) <span className="text-slate-400 font-normal">opt</span>
+                </label>
+                <input
+                  type="number"
+                  value={renewForm.pending_amount}
+                  onChange={(e) => setRenewForm(p => ({ ...p, pending_amount: e.target.value }))}
+                  className="input-field"
+                  placeholder="0"
+                  min="0"
+                  max={renewForm.amount || undefined}
+                />
+              </div>
             </div>
+
+            {/* Payment Summary */}
+            {parseInt(renewForm.amount) > 0 && (
+              <div className="bg-brand-50/70 border border-brand-100 rounded-xl px-4 py-3 space-y-1.5 text-xs">
+                <div className="flex justify-between text-slate-600">
+                  <span>Plan Fee:</span>
+                  <span className="font-semibold text-slate-800">{formatCurrency(parseInt(renewForm.amount) || 0)}</span>
+                </div>
+                {(parseInt(renewForm.pending_amount) || 0) > 0 && (
+                  <div className="flex justify-between text-red-600">
+                    <span>Remaining (Overdue) Due:</span>
+                    <span className="font-semibold">{formatCurrency(parseInt(renewForm.pending_amount) || 0)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm border-t border-brand-200/60 pt-1.5 font-bold">
+                  <span className="text-brand-800">Total Collected Now:</span>
+                  <span className="text-brand-700">
+                    {formatCurrency(Math.max(0, (parseInt(renewForm.amount) || 0) - (parseInt(renewForm.pending_amount) || 0)))}
+                  </span>
+                </div>
+                {member.pending_amount > 0 && (
+                  <div className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2 mt-2">
+                    Member already has {formatCurrency(member.pending_amount)} in previous unpaid dues.
+                    {(parseInt(renewForm.pending_amount) || 0) > 0 && (
+                      <span> Total dues will become <strong>{formatCurrency(member.pending_amount + (parseInt(renewForm.pending_amount) || 0))}</strong>.</span>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Payment Mode</label>
               <div className="grid grid-cols-3 gap-2">
@@ -312,28 +471,34 @@ export function MemberDetailClient({ member, memberships, attendance, status, da
           <p className="p-5 text-sm text-slate-400 text-center">No payments recorded</p>
         ) : (
           <div className="divide-y divide-slate-50">
-            {memberships.map((m) => (
-              <div key={m.id} className="p-4 flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-bold text-slate-900">{formatCurrency(m.amount + (m.admission_fee ?? 0))}</p>
-                    {(m.admission_fee ?? 0) > 0 && (
-                      <span className="text-xs text-slate-400">
-                        (membership {formatCurrency(m.amount)}, admission {formatCurrency(m.admission_fee ?? 0)})
-                      </span>
-                    )}
+            {memberships.map((m) => {
+              const collected = m.amount + (m.admission_fee ?? 0) - (m.due_amount ?? 0)
+              const hasBreakdown = (m.admission_fee ?? 0) > 0 || (m.due_amount ?? 0) > 0
+              return (
+                <div key={m.id} className="p-4 flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="font-bold text-slate-900">{formatCurrency(collected)}</p>
+                      {hasBreakdown && (
+                        <span className="text-xs text-slate-400">
+                          (fee {formatCurrency(m.amount)}
+                          {(m.admission_fee ?? 0) > 0 ? `, adm ${formatCurrency(m.admission_fee ?? 0)}` : ''}
+                          {(m.due_amount ?? 0) > 0 ? `, ${formatCurrency(m.due_amount ?? 0)} due` : ''})
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-400 mt-0.5">{m.payment_mode.toUpperCase()} · {formatDate(m.start_date)}</p>
                   </div>
-                  <p className="text-xs text-slate-400 mt-0.5">{m.payment_mode.toUpperCase()} · {formatDate(m.start_date)}</p>
+                  <div className="text-right">
+                    <p className="text-sm font-semibold text-slate-700 capitalize">
+                      {m.plan}
+                      <span className="text-slate-400 font-normal ml-1">· {m.category === 'both' || !m.category ? 'Strength + Cardio' : m.category.charAt(0).toUpperCase() + m.category.slice(1)}</span>
+                    </p>
+                    <p className="text-xs text-slate-400">until {formatDate(m.end_date)}</p>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-slate-700 capitalize">
-                    {m.plan}
-                    <span className="text-slate-400 font-normal ml-1">· {m.category === 'both' || !m.category ? 'Strength + Cardio' : m.category.charAt(0).toUpperCase() + m.category.slice(1)}</span>
-                  </p>
-                  <p className="text-xs text-slate-400">until {formatDate(m.end_date)}</p>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>

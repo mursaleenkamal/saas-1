@@ -53,6 +53,7 @@ export interface Membership {
   end_date: string
   amount: number
   admission_fee: number
+  due_amount?: number
   payment_mode: PaymentMode
   created_at: string
   // joined from members

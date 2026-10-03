@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Check, X, Edit2, User, Phone, MapPin, Calendar, CreditCard, Banknote, Hash, Plus } from 'lucide-react'
+import { ArrowLeft, Check, X, Edit2, User, Phone, MapPin, Calendar, CreditCard, Banknote, Hash, Plus, AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { calcEndDate, formatDate, formatCurrency, isValidPhone, formatCNIC } from '@/lib/utils'
+import { calcEndDate, formatDate, formatCurrency, isValidPhone, formatCNIC, getMemberStatus } from '@/lib/utils'
 import type { Plan, PaymentMode } from '@/types'
 import { formatMemberId } from '@/types'
 import { format } from 'date-fns'
@@ -66,6 +66,14 @@ export default function NewMemberPage() {
     pending_amount: '',
     payment_mode: 'cash' as PaymentMode,
   })
+
+  // Duplicate member detection state
+  const [checkingPhone, setCheckingPhone] = useState(false)
+  const [phoneDuplicate, setPhoneDuplicate] = useState<{ id: string; member_number: number; name: string; phone: string; status?: string } | null>(null)
+  const [dismissPhoneWarning, setDismissPhoneWarning] = useState(false)
+
+  const [checkingCnic, setCheckingCnic] = useState(false)
+  const [cnicDuplicate, setCnicDuplicate] = useState<{ id: string; member_number: number; name: string; phone: string; cnic?: string | null; status?: string } | null>(null)
 
   useEffect(() => {
     async function fetchInitialData() {
@@ -137,6 +145,87 @@ export default function NewMemberPage() {
     return () => clearTimeout(timer)
   }, [form.member_number, gymId])
 
+  // Check duplicate phone number within this gym
+  useEffect(() => {
+    const rawDigits = form.phone.replace(/\D/g, '')
+    if (rawDigits.length < 10 || !gymId) {
+      setPhoneDuplicate(null)
+      setCheckingPhone(false)
+      return
+    }
+
+    setCheckingPhone(true)
+    const timer = setTimeout(async () => {
+      const last10 = rawDigits.slice(-10)
+      const { data } = await supabase
+        .from('members')
+        .select('id, member_number, name, phone, memberships(end_date)')
+        .eq('gym_id', gymId)
+        .ilike('phone', `%${last10}%`)
+        .limit(1)
+
+      if (data && data.length > 0) {
+        const m = data[0]
+        const memberships = (m.memberships as any[]) || []
+        const latestEnd = memberships[0]?.end_date
+        const status = latestEnd ? getMemberStatus(latestEnd) : 'expired'
+        setPhoneDuplicate({
+          id: m.id,
+          member_number: m.member_number,
+          name: m.name,
+          phone: m.phone,
+          status,
+        })
+      } else {
+        setPhoneDuplicate(null)
+      }
+      setCheckingPhone(false)
+    }, 400)
+
+    return () => clearTimeout(timer)
+  }, [form.phone, gymId])
+
+  // Check duplicate CNIC number within this gym
+  useEffect(() => {
+    const rawDigits = form.cnic.replace(/\D/g, '')
+    if (rawDigits.length !== 13 || !gymId) {
+      setCnicDuplicate(null)
+      setCheckingCnic(false)
+      return
+    }
+
+    setCheckingCnic(true)
+    const timer = setTimeout(async () => {
+      const formatted = formatCNIC(rawDigits)
+      const { data } = await supabase
+        .from('members')
+        .select('id, member_number, name, phone, cnic, memberships(end_date)')
+        .eq('gym_id', gymId)
+        .or(`cnic.eq.${formatted},cnic.eq.${rawDigits}`)
+        .limit(1)
+
+      if (data && data.length > 0) {
+        const m = data[0]
+        const memberships = (m.memberships as any[]) || []
+        const latestEnd = memberships[0]?.end_date
+        const status = latestEnd ? getMemberStatus(latestEnd) : 'expired'
+        setCnicDuplicate({
+          id: m.id,
+          member_number: m.member_number,
+          name: m.name,
+          phone: m.phone,
+          cnic: m.cnic,
+          status,
+        })
+      } else {
+        setCnicDuplicate(null)
+      }
+      setCheckingCnic(false)
+    }, 400)
+
+    return () => clearTimeout(timer)
+  }, [form.cnic, gymId])
+
   function calculateAge(dobString: string): string {
     if (!dobString) return ''
     const parts = dobString.split('-')
@@ -160,6 +249,9 @@ export default function NewMemberPage() {
   }
 
   function update(field: string, value: string) {
+    if (field === 'phone') {
+      setDismissPhoneWarning(false)
+    }
     setForm(prev => {
       const next = { ...prev, [field]: value }
       if (field === 'date_of_birth') {
@@ -189,6 +281,10 @@ export default function NewMemberPage() {
     if (!form.member_number) { setError('Member ID is required'); return }
     if (numError || checkingNum) return
     if (!form.name.trim()) { setError('Full Name is required'); return }
+    if (cnicDuplicate) {
+      setError(`Member with this CNIC already exists: ${cnicDuplicate.name} (${formatMemberId(cnicDuplicate.member_number)}). Please rejoin their existing profile.`)
+      return
+    }
     setError('')
     setStep('membership')
   }
@@ -458,6 +554,44 @@ export default function NewMemberPage() {
                 {form.phone && !isValidPhone(form.phone) && (
                   <p className="text-xs text-amber-600 font-medium mt-1.5 leading-tight">⚠️ Invalid number</p>
                 )}
+                {checkingPhone && (
+                  <p className="text-[11px] text-slate-400 mt-1">Checking duplicate phone...</p>
+                )}
+                {phoneDuplicate && !dismissPhoneWarning && (
+                  <div className="mt-2.5 p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <span className="font-bold text-amber-900 block">Rejoining Member Detected!</span>
+                        <p className="text-amber-800 mt-0.5 leading-relaxed">
+                          <strong>{phoneDuplicate.name}</strong> ({formatMemberId(phoneDuplicate.member_number)}) is already registered with this phone.
+                          {phoneDuplicate.status && (
+                            <span className={`ml-1.5 px-1.5 py-0.5 rounded font-semibold text-[10px] uppercase ${
+                              phoneDuplicate.status === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
+                            }`}>
+                              {phoneDuplicate.status}
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-2.5 flex items-center justify-between gap-2 pt-2 border-t border-amber-200/70">
+                      <Link
+                        href={`/members/${phoneDuplicate.id}`}
+                        className="inline-flex items-center gap-1 bg-amber-600 hover:bg-amber-700 text-white font-semibold px-2.5 py-1.5 rounded-lg text-[11px] shadow-sm transition-all"
+                      >
+                        Rejoin / View Profile →
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => setDismissPhoneWarning(true)}
+                        className="text-slate-500 hover:text-slate-700 text-[11px] underline"
+                      >
+                        Ignore & Continue
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Name */}
@@ -479,6 +613,37 @@ export default function NewMemberPage() {
                   placeholder="42101-1234567-1"
                   maxLength={15}
                 />
+                {checkingCnic && (
+                  <p className="text-[11px] text-slate-400 mt-1">Checking duplicate CNIC...</p>
+                )}
+                {cnicDuplicate && (
+                  <div className="mt-2.5 p-3 rounded-xl bg-red-50 border border-red-200 text-xs">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <span className="font-bold text-red-900 block">CNIC Already Registered!</span>
+                        <p className="text-red-800 mt-0.5 leading-relaxed">
+                          This CNIC belongs to <strong>{cnicDuplicate.name}</strong> ({formatMemberId(cnicDuplicate.member_number)}).
+                          {cnicDuplicate.status && (
+                            <span className={`ml-1.5 px-1.5 py-0.5 rounded font-semibold text-[10px] uppercase ${
+                              cnicDuplicate.status === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
+                            }`}>
+                              {cnicDuplicate.status}
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-2.5 flex items-center justify-between gap-2 pt-2 border-t border-red-200/70">
+                      <Link
+                        href={`/members/${cnicDuplicate.id}`}
+                        className="inline-flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white font-semibold px-2.5 py-1.5 rounded-lg text-[11px] shadow-sm transition-all"
+                      >
+                        Rejoin / View Profile →
+                      </Link>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Gender */}
