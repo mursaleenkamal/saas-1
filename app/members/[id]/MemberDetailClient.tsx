@@ -1,32 +1,35 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { toast } from 'react-hot-toast'
-import { ArrowLeft, MessageCircle, Plus, Trash2, Check, Calendar, CreditCard, Edit2, Sun, Moon } from 'lucide-react'
+import { ArrowLeft, MessageCircle, Plus, Trash2, Check, Calendar, CreditCard, Edit2, Sun, Moon, Receipt } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { formatDate, formatCurrency, calcEndDate, cn, isValidPhone } from '@/lib/utils'
-import type { Member, Membership, Attendance, MemberStatus, Plan, PaymentMode } from '@/types'
+import type { Member, Membership, Attendance, MemberStatus, Plan, PaymentMode, DuePayment } from '@/types'
 import { formatMemberId } from '@/types'
 import { format } from 'date-fns'
 import { WhatsAppTemplateModal } from '@/components/whatsapp/WhatsAppTemplateModal'
 import type { TemplateId } from '@/lib/whatsapp/sender'
+import { ReceiptModal, type ReceiptPaymentItem } from '@/components/receipt/ReceiptModal'
 
 interface Props {
   member: Member
   memberships: Membership[]
   attendance: Attendance[]
+  duePayments?: DuePayment[]
   status: MemberStatus
   daysRemaining: number
   gymName?: string
   gymPlans?: any[]
 }
 
-export function MemberDetailClient({ member, memberships, attendance, status, daysRemaining, gymName, gymPlans }: Props) {
+export function MemberDetailClient({ member, memberships, attendance, duePayments = [], status, daysRemaining, gymName, gymPlans }: Props) {
   const [showRenewForm, setShowRenewForm] = useState(false)
   const [showWhatsApp, setShowWhatsApp] = useState(false)
   const [whatsAppTemplate, setWhatsAppTemplate] = useState<TemplateId>('_gymflow_welcome_member')
+  const [selectedReceipt, setSelectedReceipt] = useState<ReceiptPaymentItem | null>(null)
   const latestMembership = memberships[0] ?? null
 
   const getSuggestedStartDate = () => {
@@ -58,18 +61,18 @@ export function MemberDetailClient({ member, memberships, attendance, status, da
 
   const initialPlan = (latestMembership?.plan as Plan) || 'monthly'
   const initialAmount = latestMembership?.amount ? String(latestMembership.amount) : String(getPlanPrice(initialPlan))
-  const initialPending = member.pending_amount > 0 
-    ? String(member.pending_amount) 
-    : (latestMembership?.due_amount ? String(latestMembership.due_amount) : '')
+  const initialDuePaid = member.pending_amount > 0 ? String(member.pending_amount) : '0'
 
   const [renewForm, setRenewForm] = useState({
     plan: initialPlan,
     custom_months: latestMembership?.plan === 'custom' ? '1' : '',
     start_date: getSuggestedStartDate(),
     amount: initialAmount,
-    pending_amount: initialPending,
+    due_paid: initialDuePaid,
+    new_pending: '0',
     payment_mode: 'cash' as PaymentMode,
   })
+  const [showPartialNewPlan, setShowPartialNewPlan] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
@@ -79,17 +82,16 @@ export function MemberDetailClient({ member, memberships, attendance, status, da
     if (!showRenewForm) {
       const plan = (latestMembership?.plan as Plan) || 'monthly'
       const amount = latestMembership?.amount ? String(latestMembership.amount) : String(getPlanPrice(plan))
-      const pending = member.pending_amount > 0 
-        ? String(member.pending_amount) 
-        : (latestMembership?.due_amount ? String(latestMembership.due_amount) : '')
 
       setRenewForm(prev => ({
         ...prev,
         plan,
         start_date: getSuggestedStartDate(),
         amount,
-        pending_amount: pending,
+        due_paid: member.pending_amount > 0 ? String(member.pending_amount) : '0',
+        new_pending: '0',
       }))
+      setShowPartialNewPlan(false)
     }
     setShowRenewForm(!showRenewForm)
   }
@@ -125,16 +127,32 @@ export function MemberDetailClient({ member, memberships, attendance, status, da
     try {
       const gymId = member.gym_id
       const renewalFee = parseInt(renewForm.amount) || 0
-      const renewalPending = parseInt(renewForm.pending_amount) || 0
+      const duePaid = parseInt(renewForm.due_paid) || 0
+      const newPlanDue = parseInt(renewForm.new_pending) || 0
 
       if (renewalFee <= 0) {
         throw new Error('Please enter a valid plan fee.')
       }
-      if (renewalPending < 0) {
-        throw new Error('Remaining due amount cannot be negative.')
+      if (duePaid < 0) {
+        throw new Error('Due amount cannot be negative.')
+      }
+      if (duePaid > (member.pending_amount || 0)) {
+        throw new Error(`Due payment cannot exceed current due of ${formatCurrency(member.pending_amount)}`)
+      }
+      if (newPlanDue < 0) {
+        throw new Error('Unpaid amount cannot be negative.')
+      }
+      if (newPlanDue > renewalFee) {
+        throw new Error('Unpaid amount cannot exceed plan fee.')
       }
 
-      const end_date = calcEndDate(renewForm.start_date, renewForm.plan, renewForm.plan === 'custom' ? parseInt(renewForm.custom_months) || 1 : undefined)
+      const end_date = calcEndDate(
+        renewForm.start_date,
+        renewForm.plan,
+        renewForm.plan === 'custom' ? parseInt(renewForm.custom_months) || 1 : undefined
+      )
+
+      // 1. Insert new membership
       const { error: err } = await supabase.from('memberships').insert({
         member_id: member.id,
         gym_id: gymId,
@@ -143,23 +161,51 @@ export function MemberDetailClient({ member, memberships, attendance, status, da
         start_date: renewForm.start_date,
         end_date,
         amount: renewalFee,
-        due_amount: renewalPending,
+        due_amount: newPlanDue,
         payment_mode: renewForm.payment_mode,
       })
       if (err) throw err
 
-      // Update member pending_amount to reflect the updated due balance
+      // 2. Record past due payment if member cleared any past dues
+      if (duePaid > 0) {
+        const { error: dueErr } = await supabase.from('due_payments').insert({
+          gym_id: gymId,
+          member_id: member.id,
+          amount: duePaid,
+          payment_mode: renewForm.payment_mode,
+          created_at: new Date().toISOString(),
+        })
+        if (dueErr) {
+          console.error('Failed to record due payment:', dueErr)
+        }
+      }
+
+      // 3. Update member pending_amount to reflect the updated due balance
+      const updatedPending = Math.max(0, (member.pending_amount || 0) - duePaid) + newPlanDue
       const { error: memberUpdateErr } = await supabase
         .from('members')
-        .update({ pending_amount: renewalPending })
+        .update({ pending_amount: updatedPending })
         .eq('id', member.id)
 
       if (memberUpdateErr) {
         console.error('Failed to update member pending amount:', memberUpdateErr)
       }
 
-      // Auto-send renewal confirmation + cancel old expiry reminder cycles
-      // (fire-and-forget — never blocks the save).
+      // 4. Auto-send WhatsApp due cleared alert if dues were paid and fully cleared
+      if (duePaid > 0 && updatedPending === 0 && isValidPhone(member.phone)) {
+        fetch('/api/whatsapp/automation/due-cleared', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            gymId,
+            memberId: member.id,
+            phone: member.phone,
+            dueDate: new Date().toISOString().slice(0, 10),
+          }),
+        }).catch(() => {})
+      }
+
+      // 5. Auto-send renewal confirmation + cancel old expiry reminder cycles
       if (isValidPhone(member.phone)) {
         fetch('/api/whatsapp/automation/renewal', {
           method: 'POST',
@@ -174,7 +220,7 @@ export function MemberDetailClient({ member, memberships, attendance, status, da
             validUntil:      end_date,
             previousEndDate: latestMembership?.end_date ?? undefined,
           }),
-        }).catch(() => {}) // fire-and-forget
+        }).catch(() => {})
       }
 
       const { invalidateMembersCache } = await import('../actions')
@@ -184,8 +230,10 @@ export function MemberDetailClient({ member, memberships, attendance, status, da
       setRenewForm(prev => ({
         ...prev,
         amount: '',
-        pending_amount: '',
+        due_paid: '0',
+        new_pending: '0',
       }))
+      setShowPartialNewPlan(false)
       toast.success('Membership renewed successfully!')
       router.refresh()
     } catch (err: any) {
@@ -219,6 +267,41 @@ export function MemberDetailClient({ member, memberships, attendance, status, da
       toast.error('Failed to delete member: ' + (err.message || 'Unknown error'))
     }
   }
+
+  const allPaymentHistory = useMemo(() => {
+    const list: Array<{
+      id: string
+      type: 'membership' | 'due'
+      amount: number
+      date: string
+      payment_mode: PaymentMode
+      membership?: Membership
+    }> = []
+
+    memberships.forEach(m => {
+      const collected = m.amount + (m.admission_fee ?? 0) - (m.due_amount ?? 0)
+      list.push({
+        id: m.id,
+        type: 'membership',
+        amount: collected,
+        date: m.start_date || m.created_at,
+        payment_mode: m.payment_mode,
+        membership: m,
+      })
+    })
+
+    ;(duePayments || []).forEach(dp => {
+      list.push({
+        id: dp.id,
+        type: 'due',
+        amount: dp.amount,
+        date: dp.created_at,
+        payment_mode: dp.payment_mode,
+      })
+    })
+
+    return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  }, [memberships, duePayments])
 
   const initials = member.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
 
@@ -290,7 +373,7 @@ export function MemberDetailClient({ member, memberships, attendance, status, da
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className={cn("grid gap-3", allPaymentHistory.length > 0 && latestMembership ? "grid-cols-3" : "grid-cols-2")}>
         {latestMembership && (
           isValidPhone(member.phone) ? (
             <button
@@ -306,22 +389,32 @@ export function MemberDetailClient({ member, memberships, attendance, status, da
                 setWhatsAppTemplate(t)
                 setShowWhatsApp(true)
               }}
-              className="flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white py-3.5 rounded-2xl font-semibold text-sm shadow-md shadow-emerald-200 active:scale-[0.98] transition-all"
+              className="flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white py-3.5 rounded-2xl font-semibold text-xs sm:text-sm shadow-md shadow-emerald-200 active:scale-[0.98] transition-all"
             >
               <MessageCircle className="w-4 h-4" />WhatsApp
             </button>
           ) : (
-            <div className="flex flex-col items-center justify-center gap-1 bg-slate-100 text-slate-400 py-3.5 rounded-2xl text-sm cursor-not-allowed">
+            <div className="flex flex-col items-center justify-center gap-1 bg-slate-100 text-slate-400 py-3.5 rounded-2xl text-xs sm:text-sm cursor-not-allowed">
               <div className="flex items-center gap-2">
                 <MessageCircle className="w-4 h-4" />
                 <span className="font-semibold">WhatsApp</span>
               </div>
-              <span className="text-[10px] text-center px-2 leading-tight">Invalid phone number — cannot send message</span>
+              <span className="text-[10px] text-center px-2 leading-tight">Invalid phone</span>
             </div>
           )
         )}
+        {allPaymentHistory.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setSelectedReceipt(allPaymentHistory[0])}
+            className="flex items-center justify-center gap-2 bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 py-3.5 rounded-2xl font-semibold text-xs sm:text-sm shadow-sm active:scale-[0.98] transition-all"
+          >
+            <Receipt className="w-4 h-4 text-brand-600" />
+            <span>Receipt</span>
+          </button>
+        )}
         <button onClick={toggleRenewForm}
-          className="flex items-center justify-center gap-2 bg-gradient-to-r from-brand-500 to-brand-600 text-white py-3.5 rounded-2xl font-semibold text-sm shadow-md shadow-brand-200 active:scale-[0.98] transition-all"
+          className="flex items-center justify-center gap-2 bg-gradient-to-r from-brand-500 to-brand-600 text-white py-3.5 rounded-2xl font-semibold text-xs sm:text-sm shadow-md shadow-brand-200 active:scale-[0.98] transition-all"
         >
           <Plus className="w-4 h-4" />Renew
         </button>
@@ -442,35 +535,114 @@ export function MemberDetailClient({ member, memberships, attendance, status, da
                   value={renewForm.amount}
                   onChange={(e) => setRenewForm(p => ({ ...p, amount: e.target.value }))}
                   className="input-field"
-                  placeholder="1500"
+                  placeholder="3000"
                   min="0"
                   required
                 />
               </div>
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
-                    Remaining / Due (PKR) <span className="text-slate-400 font-normal">opt</span>
-                  </label>
-                  {member.pending_amount > 0 && (
+
+              {member.pending_amount > 0 ? (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
+                      Add Previous Due (PKR)
+                    </label>
                     <span className="text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded">
                       Current Due: {formatCurrency(member.pending_amount)}
                     </span>
-                  )}
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={renewForm.due_paid}
+                      onChange={(e) => setRenewForm(p => ({ ...p, due_paid: e.target.value }))}
+                      className="input-field pr-20 font-semibold text-slate-900"
+                      placeholder="0"
+                      min="0"
+                      max={member.pending_amount}
+                    />
+                    <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                      {renewForm.due_paid !== String(member.pending_amount) && (
+                        <button
+                          type="button"
+                          onClick={() => setRenewForm(p => ({ ...p, due_paid: String(member.pending_amount) }))}
+                          className="text-[10px] font-bold text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 px-2 py-1 rounded transition-colors"
+                        >
+                          All
+                        </button>
+                      )}
+                      {renewForm.due_paid !== '0' && (
+                        <button
+                          type="button"
+                          onClick={() => setRenewForm(p => ({ ...p, due_paid: '0' }))}
+                          className="text-[10px] font-medium text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 px-1.5 py-1 rounded transition-colors"
+                        >
+                          0
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <input
-                  type="number"
-                  value={renewForm.pending_amount}
-                  onChange={(e) => setRenewForm(p => ({ ...p, pending_amount: e.target.value }))}
-                  className="input-field"
-                  placeholder="0"
-                  min="0"
-                />
-              </div>
+              ) : (
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
+                    Remaining / Due (PKR) <span className="text-slate-400 font-normal">opt</span>
+                  </label>
+                  <input
+                    type="number"
+                    value={renewForm.new_pending}
+                    onChange={(e) => setRenewForm(p => ({ ...p, new_pending: e.target.value }))}
+                    className="input-field"
+                    placeholder="0"
+                    min="0"
+                  />
+                </div>
+              )}
             </div>
 
+            {/* Optional: if member has previous due, allow partial payment on this new plan if needed */}
+            {member.pending_amount > 0 && (
+              <div>
+                {!showPartialNewPlan && (parseInt(renewForm.new_pending) || 0) === 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowPartialNewPlan(true)}
+                    className="text-[11px] text-slate-500 hover:text-brand-600 transition-colors inline-flex items-center gap-1 font-medium"
+                  >
+                    + Member paying partial renewal fee? (Leave balance unpaid)
+                  </button>
+                ) : (
+                  <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl space-y-1.5 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-amber-800 uppercase tracking-wide">
+                        Unpaid / Due on this Renewal (PKR)
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRenewForm(p => ({ ...p, new_pending: '0' }))
+                          setShowPartialNewPlan(false)
+                        }}
+                        className="text-[11px] text-amber-700 hover:underline"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                    <input
+                      type="number"
+                      value={renewForm.new_pending}
+                      onChange={(e) => setRenewForm(p => ({ ...p, new_pending: e.target.value }))}
+                      className="input-field bg-white"
+                      placeholder="0"
+                      min="0"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Payment Summary */}
-            {parseInt(renewForm.amount) > 0 && (
+            {(parseInt(renewForm.amount) || 0) > 0 && (
               <div className="bg-brand-50/70 border border-brand-100 rounded-xl px-4 py-3 space-y-1.5 text-xs">
                 <div className="flex justify-between text-slate-600">
                   <span>Selected Package:</span>
@@ -483,18 +655,43 @@ export function MemberDetailClient({ member, memberships, attendance, status, da
                   <span>Package Fee:</span>
                   <span className="font-semibold text-slate-800">{formatCurrency(parseInt(renewForm.amount) || 0)}</span>
                 </div>
-                {(parseInt(renewForm.pending_amount) || 0) > 0 && (
-                  <div className="flex justify-between text-red-600">
-                    <span>Remaining (Overdue) Balance:</span>
-                    <span className="font-semibold">{formatCurrency(parseInt(renewForm.pending_amount) || 0)}</span>
+                {(parseInt(renewForm.due_paid) || 0) > 0 && (
+                  <div className="flex justify-between text-emerald-700 font-medium">
+                    <span>Previous Due Added:</span>
+                    <span className="font-bold">+{formatCurrency(parseInt(renewForm.due_paid) || 0)}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-sm border-t border-brand-200/60 pt-1.5 font-bold">
-                  <span className="text-brand-800">Total Collected Now:</span>
-                  <span className="text-brand-700">
-                    {formatCurrency(Math.max(0, (parseInt(renewForm.amount) || 0) - (parseInt(renewForm.pending_amount) || 0)))}
+                {(parseInt(renewForm.new_pending) || 0) > 0 && (
+                  <div className="flex justify-between text-red-600 font-medium">
+                    <span>Unpaid on New Plan:</span>
+                    <span className="font-bold">-{formatCurrency(parseInt(renewForm.new_pending) || 0)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm border-t border-brand-200/60 pt-2 font-bold">
+                  <span className="text-brand-900">Total Collected Now:</span>
+                  <span className="text-brand-700 text-base">
+                    {formatCurrency(
+                      Math.max(
+                        0,
+                        (parseInt(renewForm.amount) || 0) +
+                        (parseInt(renewForm.due_paid) || 0) -
+                        (parseInt(renewForm.new_pending) || 0)
+                      )
+                    )}
                   </span>
                 </div>
+                {member.pending_amount > 0 && (
+                  <div className="flex justify-between text-[11px] pt-1.5 border-t border-brand-100 text-slate-500">
+                    <span>Member&apos;s New Due Balance:</span>
+                    <span className={Math.max(0, (member.pending_amount || 0) - (parseInt(renewForm.due_paid) || 0)) + (parseInt(renewForm.new_pending) || 0) > 0 ? "font-bold text-red-600" : "font-bold text-emerald-600"}>
+                      {formatCurrency(
+                        Math.max(0, (member.pending_amount || 0) - (parseInt(renewForm.due_paid) || 0)) +
+                        (parseInt(renewForm.new_pending) || 0)
+                      )}
+                      {Math.max(0, (member.pending_amount || 0) - (parseInt(renewForm.due_paid) || 0)) + (parseInt(renewForm.new_pending) || 0) === 0 ? " (Fully Cleared ✓)" : ""}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
             <div>
@@ -525,15 +722,45 @@ export function MemberDetailClient({ member, memberships, attendance, status, da
           </div>
           <h3 className="font-bold text-slate-900">Payment History</h3>
         </div>
-        {memberships.length === 0 ? (
+        {allPaymentHistory.length === 0 ? (
           <p className="p-5 text-sm text-slate-400 text-center">No payments recorded</p>
         ) : (
           <div className="divide-y divide-slate-50">
-            {memberships.map((m) => {
+            {allPaymentHistory.map((item) => {
+              if (item.type === 'due') {
+                return (
+                  <div key={item.id} className="p-4 flex items-center justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-bold text-slate-900">{formatCurrency(item.amount)}</p>
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                          Due Cleared
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-0.5">{item.payment_mode.toUpperCase()} · {formatDate(item.date)}</p>
+                    </div>
+                    <div className="flex items-center gap-2.5">
+                      <div className="text-right hidden sm:block">
+                        <p className="text-xs font-semibold text-slate-600">Past Due Payment</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedReceipt(item)}
+                        className="flex items-center gap-1 text-xs font-semibold text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 px-2.5 py-1.5 rounded-lg border border-brand-200/60 transition-all active:scale-95 flex-shrink-0"
+                        title="Print or share receipt"
+                      >
+                        <Receipt className="w-3.5 h-3.5" />
+                        <span>Receipt</span>
+                      </button>
+                    </div>
+                  </div>
+                )
+              }
+              const m = item.membership!
               const collected = m.amount + (m.admission_fee ?? 0) - (m.due_amount ?? 0)
               const hasBreakdown = (m.admission_fee ?? 0) > 0 || (m.due_amount ?? 0) > 0
               return (
-                <div key={m.id} className="p-4 flex items-center justify-between">
+                <div key={m.id} className="p-4 flex items-center justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2">
                       <p className="font-bold text-slate-900">{formatCurrency(collected)}</p>
@@ -547,12 +774,23 @@ export function MemberDetailClient({ member, memberships, attendance, status, da
                     </div>
                     <p className="text-xs text-slate-400 mt-0.5">{m.payment_mode.toUpperCase()} · {formatDate(m.start_date)}</p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-slate-700 capitalize">
-                      {m.plan}
-                      <span className="text-slate-400 font-normal ml-1">· {m.category === 'both' || !m.category ? 'Strength + Cardio' : m.category.charAt(0).toUpperCase() + m.category.slice(1)}</span>
-                    </p>
-                    <p className="text-xs text-slate-400">until {formatDate(m.end_date)}</p>
+                  <div className="flex items-center gap-2.5">
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-slate-700 capitalize">
+                        {m.plan}
+                        <span className="text-slate-400 font-normal ml-1">· {m.category === 'both' || !m.category ? 'Strength + Cardio' : m.category.charAt(0).toUpperCase() + m.category.slice(1)}</span>
+                      </p>
+                      <p className="text-xs text-slate-400">until {formatDate(m.end_date)}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedReceipt(item)}
+                      className="flex items-center gap-1 text-xs font-semibold text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 px-2.5 py-1.5 rounded-lg border border-brand-200/60 transition-all active:scale-95 flex-shrink-0"
+                      title="Print or share receipt"
+                    >
+                      <Receipt className="w-3.5 h-3.5" />
+                      <span>Receipt</span>
+                    </button>
                   </div>
                 </div>
               )
@@ -598,6 +836,14 @@ export function MemberDetailClient({ member, memberships, attendance, status, da
           </div>
         )}
       </div>
+
+      <ReceiptModal
+        open={!!selectedReceipt}
+        onClose={() => setSelectedReceipt(null)}
+        member={member}
+        gymName={gymName}
+        payment={selectedReceipt}
+      />
     </div>
   )
 }

@@ -16,7 +16,7 @@ export default async function MemberDetailPage({
 
   // Parallel fetching instead of sequential waterfall. The gym name and plans
   // are joined into the member query (gym:gyms(name, onboarding_data)) to eliminate a separate round-trip.
-  const [{ data: member }, { data: memberships }, { data: attendance }] = await Promise.all([
+  const [{ data: member }, { data: memberships }, { data: attendance }, { data: duePayments }] = await Promise.all([
     supabase
       .from('members')
       .select('id, gym_id, member_number, name, phone, gender, age, date_of_birth, cnic, area, pending_amount, created_at, legacy_member_id, is_imported, gym:gyms(name, onboarding_data)')
@@ -27,12 +27,18 @@ export default async function MemberDetailPage({
       .select('*')
       .eq('member_id', id)
       .order('created_at', { ascending: false })
-      .limit(5),
+      .limit(10),
     supabase
       .from('attendance')
       .select('*')
       .eq('member_id', id)
       .order('date', { ascending: false })
+      .limit(10),
+    supabase
+      .from('due_payments')
+      .select('*')
+      .eq('member_id', id)
+      .order('created_at', { ascending: false })
       .limit(10),
   ])
 
@@ -55,6 +61,7 @@ export default async function MemberDetailPage({
       member={member}
       memberships={memberships ?? []}
       attendance={attendance ?? []}
+      duePayments={duePayments ?? []}
       status={status}
       daysRemaining={daysRemaining}
       gymName={gym?.name}

@@ -165,3 +165,31 @@
     @apply max-w-7xl mx-auto 3xl:max-w-8xl;
   }
 }
+
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  #printable-receipt,
+  #printable-receipt * {
+    visibility: visible !important;
+  }
+  #printable-receipt {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 650px !important;
+    margin: 0 auto !important;
+    padding: 16px !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}

@@ -60,6 +60,15 @@ export interface Membership {
   member?: Member
 }
 
+export interface DuePayment {
+  id: string
+  member_id: string
+  gym_id: string
+  amount: number
+  payment_mode: PaymentMode
+  created_at: string
+}
+
 export interface Attendance {
   id: string
   member_id: string
