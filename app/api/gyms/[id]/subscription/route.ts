@@ -32,6 +32,11 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
 
     if (error) throw error
 
+    if (gym?.owner_id) {
+      const { deleteCache } = await import('@/lib/cache')
+      await deleteCache(`user:${gym.owner_id}:gym`)
+    }
+
     return NextResponse.json({ success: true })
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })

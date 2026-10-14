@@ -77,7 +77,9 @@ export default function GymDetailClient({
   const [subStatus, setSubStatus] = useState(gym.subscription_status || 'trial')
   const [planType, setPlanType] = useState(gym.plan_type || 'monthly')
   const [subEndsAt, setSubEndsAt] = useState(
-    gym.subscription_ends_at ? gym.subscription_ends_at.slice(0, 10) : ''
+    (gym.subscription_status === 'trial' ? gym.trial_ends_at : gym.subscription_ends_at)
+      ? (gym.subscription_status === 'trial' ? gym.trial_ends_at! : gym.subscription_ends_at!).slice(0, 10)
+      : ''
   )
   const [savingSub, setSavingSub] = useState(false)
   const [togglingStatus, setTogglingStatus] = useState(false)
@@ -132,7 +134,8 @@ export default function GymDetailClient({
         body: JSON.stringify({
           subscription_status: subStatus,
           plan_type: planType,
-          subscription_ends_at: subEndsAt ? new Date(subEndsAt).toISOString() : null,
+          trial_ends_at: subStatus === 'trial' ? (subEndsAt ? new Date(subEndsAt).toISOString() : null) : null,
+          subscription_ends_at: subStatus === 'active' ? (subEndsAt ? new Date(subEndsAt).toISOString() : null) : null,
         }),
       })
 
@@ -145,7 +148,8 @@ export default function GymDetailClient({
         ...prev,
         subscription_status: subStatus,
         plan_type: planType,
-        subscription_ends_at: subEndsAt ? new Date(subEndsAt).toISOString() : null,
+        trial_ends_at: subStatus === 'trial' ? (subEndsAt ? new Date(subEndsAt).toISOString() : null) : prev.trial_ends_at,
+        subscription_ends_at: subStatus === 'active' ? (subEndsAt ? new Date(subEndsAt).toISOString() : null) : null,
       }))
       toast.success('Subscription plan updated successfully!')
     } catch (err: any) {
@@ -341,7 +345,16 @@ export default function GymDetailClient({
                   </label>
                   <select
                     value={subStatus}
-                    onChange={e => setSubStatus(e.target.value)}
+                    onChange={e => {
+                      const next = e.target.value
+                      setSubStatus(next)
+                      // Auto-update date field to match trial or subscription date
+                      if (next === 'trial' && gym.trial_ends_at) {
+                        setSubEndsAt(gym.trial_ends_at.slice(0, 10))
+                      } else if (next === 'active' && gym.subscription_ends_at) {
+                        setSubEndsAt(gym.subscription_ends_at.slice(0, 10))
+                      }
+                    }}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white text-xs font-semibold text-slate-800 transition-all"
                   >
                     <option value="active">Active (Paid Account)</option>
