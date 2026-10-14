@@ -1,0 +1,1464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GymFlow — Complete Product Capabilities & Visual Feature Catalog</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Sora:wght@600;700;800;900&family=JetBrains+Mono:wght@600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-dark: #1e3a8a;
+      --primary-navy: #0f172a;
+      --navy-card: #1e293b;
+      --accent-cyan: #06b6d4;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-crimson: #ef4444;
+      --bg-canvas: #f8fafc;
+      --card-bg: #ffffff;
+      --border-subtle: #e2e8f0;
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --text-light: #94a3b8;
+      --shadow-sm: 0 2px 4px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 6px 16px -2px rgba(0, 0, 0, 0.08), 0 3px 6px -3px rgba(0, 0, 0, 0.08);
+      --shadow-lg: 0 16px 32px -4px rgba(15, 23, 42, 0.12), 0 8px 12px -6px rgba(15, 23, 42, 0.08);
+      --shadow-glow: 0 0 30px rgba(37, 99, 235, 0.35);
+      --shadow-emerald: 0 0 25px rgba(16, 185, 129, 0.3);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-canvas);
+      color: var(--text-main);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      padding-bottom: 90px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 28px;
+    }
+
+    /* ══════════════════════════════════════════════════════════════════
+       HERO & BRAND BANNER (ULTRA BIG & BOLD TYPOGRAPHY)
+       ══════════════════════════════════════════════════════════════════ */
+    header {
+      background: linear-gradient(145deg, #090e1a 0%, #0f172a 45%, #172554 100%);
+      color: #ffffff;
+      padding: 75px 0 65px 0;
+      border-bottom: 5px solid var(--primary);
+      position: relative;
+      overflow: hidden;
+    }
+
+    header::before {
+      content: '';
+      position: absolute;
+      top: -30%;
+      right: -10%;
+      width: 650px;
+      height: 650px;
+      background: radial-gradient(circle, rgba(37, 99, 235, 0.35) 0%, rgba(6, 182, 212, 0) 70%);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .brand-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 45px;
+    }
+
+    .logo-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .logo-icon {
+      width: 58px;
+      height: 58px;
+      background: linear-gradient(135deg, #2563eb 0%, #06b6d4 100%);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 30px;
+      box-shadow: var(--shadow-glow);
+    }
+
+    .logo-text {
+      font-family: 'Sora', sans-serif;
+      font-size: 36px;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      color: #ffffff;
+    }
+
+    .logo-tag {
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      background: rgba(37, 99, 235, 0.35);
+      color: #93c5fd;
+      padding: 5px 14px;
+      border-radius: 30px;
+      border: 1px solid rgba(147, 197, 253, 0.4);
+    }
+
+    .contact-pill {
+      background: rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 12px 24px;
+      border-radius: 40px;
+      font-size: 15px;
+      font-weight: 700;
+      color: #f1f5f9;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .hero-badge-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(16, 185, 129, 0.2);
+      border: 1px solid rgba(52, 211, 153, 0.4);
+      color: #34d399;
+      font-size: 14px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 6px 18px;
+      border-radius: 30px;
+      margin-bottom: 22px;
+    }
+
+    .hero-title {
+      font-family: 'Sora', sans-serif;
+      font-size: 54px;
+      font-weight: 900;
+      line-height: 1.15;
+      margin-bottom: 22px;
+      letter-spacing: -1.5px;
+      max-width: 1000px;
+    }
+
+    .hero-title span {
+      background: linear-gradient(90deg, #60a5fa 0%, #22d3ee 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-subtitle {
+      font-size: 21px;
+      color: #cbd5e1;
+      max-width: 880px;
+      line-height: 1.6;
+      margin-bottom: 38px;
+      font-weight: 500;
+    }
+
+    .hero-metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      margin-top: 40px;
+    }
+
+    .hero-metric-card {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 18px;
+      padding: 24px;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .metric-value {
+      font-family: 'Sora', sans-serif;
+      font-size: 32px;
+      font-weight: 900;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .metric-value.green { color: #34d399; }
+    .metric-value.blue { color: #60a5fa; }
+    .metric-value.amber { color: #fbbf24; }
+    .metric-value.cyan { color: #22d3ee; }
+
+    .metric-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: #cbd5e1;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 6px;
+    }
+
+    /* ══════════════════════════════════════════════════════════════════
+       SECTION HEADINGS & BASICS
+       ══════════════════════════════════════════════════════════════════ */
+    section {
+      padding: 70px 0;
+    }
+
+    .section-header {
+      text-align: center;
+      max-width: 860px;
+      margin: 0 auto 55px auto;
+    }
+
+    .section-badge {
+      display: inline-block;
+      font-size: 13.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: var(--primary);
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      padding: 6px 18px;
+      border-radius: 30px;
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-family: 'Sora', sans-serif;
+      font-size: 42px;
+      font-weight: 900;
+      color: var(--primary-navy);
+      letter-spacing: -0.8px;
+      margin-bottom: 16px;
+      line-height: 1.2;
+    }
+
+    .section-desc {
+      font-size: 19px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* ══════════════════════════════════════════════════════════════════
+       PAIN VS SOLUTION (HIGH CONTRAST INFOGRAPHIC)
+       ══════════════════════════════════════════════════════════════════ */
+    .pain-solution-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .pain-card {
+      background: #fff5f5;
+      border: 2px solid #fecaca;
+      border-radius: 22px;
+      padding: 38px;
+      box-shadow: var(--shadow-sm);
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .solution-card {
+      background: #f0fdf4;
+      border: 2px solid #bbf7d0;
+      border-radius: 22px;
+      padding: 38px;
+      box-shadow: var(--shadow-sm);
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .card-heading {
+      font-family: 'Sora', sans-serif;
+      font-size: 26px;
+      font-weight: 900;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .pain-card .card-heading { color: #b91c1c; }
+    .solution-card .card-heading { color: #15803d; }
+
+    .check-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .check-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      font-size: 17px;
+      color: #1e293b;
+      line-height: 1.55;
+    }
+
+    .check-list li .icon {
+      font-size: 22px;
+      line-height: 1.2;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    /* ══════════════════════════════════════════════════════════════════
+       VISUAL FEATURE MODULE CARDS WITH INTEGRATED UI SCREENSHOTS
+       ══════════════════════════════════════════════════════════════════ */
+    .visual-modules-container {
+      display: flex;
+      flex-direction: column;
+      gap: 50px;
+    }
+
+    .module-card {
+      background: var(--card-bg);
+      border: 2px solid var(--border-subtle);
+      border-radius: 26px;
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
+      display: grid;
+      grid-template-columns: 1fr 1.2fr;
+      align-items: center;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .module-card.reverse {
+      grid-template-columns: 1.2fr 1fr;
+    }
+
+    .module-content {
+      padding: 48px;
+    }
+
+    .module-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      margin-bottom: 18px;
+    }
+
+    .badge-blue { background: #eff6ff; color: var(--primary); border: 1px solid #bfdbfe; }
+    .badge-green { background: #ecfdf5; color: var(--accent-emerald); border: 1px solid #a7f3d0; }
+    .badge-amber { background: #fffbeb; color: var(--accent-amber); border: 1px solid #fde68a; }
+    .badge-cyan { background: #ecfeff; color: var(--accent-cyan); border: 1px solid #a5f3fc; }
+    .badge-purple { background: #f5f3ff; color: #7c3aed; border: 1px solid #ddd6fe; }
+
+    .module-title {
+      font-family: 'Sora', sans-serif;
+      font-size: 32px;
+      font-weight: 900;
+      color: var(--primary-navy);
+      margin-bottom: 16px;
+      line-height: 1.25;
+    }
+
+    .module-desc {
+      font-size: 17px;
+      color: var(--text-muted);
+      line-height: 1.65;
+      margin-bottom: 24px;
+    }
+
+    .module-features-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 25px;
+    }
+
+    .module-features-list li {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 15.5px;
+      font-weight: 700;
+      color: #334155;
+    }
+
+    .module-features-list li span.dot-check {
+      color: var(--accent-emerald);
+      font-weight: 900;
+      font-size: 18px;
+    }
+
+    .module-visual-pane {
+      background: #0f172a;
+      padding: 38px;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-left: 2px solid #1e293b;
+    }
+
+    .module-card.reverse .module-visual-pane {
+      border-left: none;
+      border-right: 2px solid #1e293b;
+    }
+
+    /* ══════════════════════════════════════════════════════════════════
+       DETAILED REALISTIC UI MOCKUPS (INSIDE VISUAL PANES)
+       ══════════════════════════════════════════════════════════════════ */
+    .ui-window {
+      width: 100%;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 20px 30px -5px rgba(0, 0, 0, 0.6);
+    }
+
+    .ui-window-header {
+      background: #0f172a;
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #334155;
+    }
+
+    .ui-dots { display: flex; gap: 7px; }
+    .ui-dot { width: 11px; height: 11px; border-radius: 50%; }
+    .ui-dot.red { background: #ef4444; }
+    .ui-dot.yellow { background: #f59e0b; }
+    .ui-dot.green { background: #10b981; }
+
+    .ui-url {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: #94a3b8;
+      background: #1e293b;
+      padding: 4px 14px;
+      border-radius: 6px;
+    }
+
+    .ui-body {
+      padding: 22px;
+      background: #0b1120;
+    }
+
+    /* Mockup 1: Dashboard UI */
+    .dash-kpis {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .dash-kpi {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 14px;
+    }
+
+    .dash-kpi-lbl { font-size: 11.5px; color: #94a3b8; text-transform: uppercase; font-weight: 800; }
+    .dash-kpi-val { font-size: 24px; font-weight: 900; color: #ffffff; font-family: 'Sora', sans-serif; margin-top: 4px; }
+    .dash-kpi-sub { font-size: 12px; color: #34d399; font-weight: 700; margin-top: 3px; }
+
+    .dash-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .dash-table th {
+      text-align: left;
+      padding: 10px 12px;
+      color: #64748b;
+      font-weight: 800;
+      border-bottom: 1px solid #334155;
+      font-size: 11.5px;
+      text-transform: uppercase;
+    }
+
+    .dash-table td {
+      padding: 11px 12px;
+      border-bottom: 1px solid #1e293b;
+      color: #cbd5e1;
+    }
+
+    .badge-status {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .status-paid { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.4); }
+    .status-due { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(248, 113, 113, 0.4); }
+
+    /* Mockup 2: WhatsApp Chat Simulator */
+    .whatsapp-phone-frame {
+      width: 100%;
+      max-width: 380px;
+      background: #ffffff;
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 25px 35px rgba(0,0,0,0.5);
+      border: 4px solid #334155;
+    }
+
+    .wa-top-bar {
+      background: #075e54;
+      color: white;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .wa-avatar {
+      width: 40px;
+      height: 40px;
+      background: #25d366;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+
+    .wa-name { font-weight: 800; font-size: 15px; }
+    .wa-status { font-size: 12px; color: #a7f3d0; }
+
+    .wa-chat-bg {
+      background: #e5ddd5;
+      padding: 18px;
+      min-height: 260px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .wa-msg-bubble {
+      background: #dcf8c6;
+      border-radius: 14px 14px 0 14px;
+      padding: 14px 16px;
+      font-size: 14px;
+      color: #111827;
+      line-height: 1.5;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+      align-self: flex-end;
+      max-width: 92%;
+    }
+
+    .wa-qr-card {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
+      padding: 12px;
+      margin-top: 10px;
+      text-align: center;
+    }
+
+    .wa-qr-box {
+      width: 100px;
+      height: 100px;
+      background: #0f172a;
+      margin: 8px auto;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #38bdf8;
+      font-size: 36px;
+    }
+
+    .wa-pay-btn {
+      display: block;
+      background: #2563eb;
+      color: white;
+      text-align: center;
+      padding: 8px;
+      border-radius: 8px;
+      font-size: 12.5px;
+      font-weight: 800;
+      text-decoration: none;
+      margin-top: 8px;
+    }
+
+    /* Mockup 3: Attendance Kiosk */
+    .kiosk-box {
+      background: #1e293b;
+      border-radius: 16px;
+      padding: 22px;
+      text-align: center;
+    }
+
+    .kiosk-input-display {
+      background: #0f172a;
+      border: 2px solid #3b82f6;
+      border-radius: 12px;
+      padding: 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 28px;
+      font-weight: 900;
+      color: #60a5fa;
+      letter-spacing: 4px;
+      margin-bottom: 16px;
+    }
+
+    .kiosk-result-paid {
+      background: rgba(16, 185, 129, 0.2);
+      border: 2px solid #10b981;
+      border-radius: 14px;
+      padding: 18px;
+      color: #34d399;
+      text-align: left;
+    }
+
+    /* Mockup 4: Supplement POS */
+    .pos-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .pos-item {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .pos-item-icon {
+      width: 42px;
+      height: 42px;
+      background: #0f172a;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+
+    .pos-item-name { font-size: 13px; font-weight: 800; color: #ffffff; }
+    .pos-item-price { font-size: 12px; color: #38bdf8; font-weight: 700; }
+
+    /* ══════════════════════════════════════════════════════════════════
+       PRICING & ROI SECTION (MASSIVE & PROMINENT)
+       ══════════════════════════════════════════════════════════════════ */
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 28px;
+      margin-top: 45px;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .pricing-card {
+      background: var(--card-bg);
+      border: 2px solid var(--border-subtle);
+      border-radius: 24px;
+      padding: 40px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-sm);
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .pricing-card.featured {
+      border-color: var(--primary);
+      box-shadow: 0 16px 40px -5px rgba(37, 99, 235, 0.25);
+      background: linear-gradient(180deg, #ffffff 0%, #f0f7ff 100%);
+      padding-top: 56px;
+    }
+
+    .featured-tag {
+      position: absolute;
+      top: -16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(90deg, #2563eb, #1d4ed8);
+      color: white;
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      padding: 6px 18px;
+      border-radius: 30px;
+      box-shadow: 0 4px 10px rgba(37, 99, 235, 0.4);
+      white-space: nowrap;
+      z-index: 10;
+    }
+
+    .plan-name {
+      font-family: 'Sora', sans-serif;
+      font-size: 24px;
+      font-weight: 900;
+      color: var(--primary-navy);
+      min-height: 60px;
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .plan-desc {
+      font-size: 14px;
+      color: var(--text-muted);
+      min-height: 44px;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    .price-block {
+      margin-bottom: 24px;
+    }
+
+    .price-strike-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 28px;
+      margin-bottom: 8px;
+      white-space: nowrap;
+    }
+
+    .price-original {
+      font-family: 'Sora', sans-serif;
+      font-size: 18px;
+      font-weight: 800;
+      color: #94a3b8;
+      text-decoration: line-through;
+      text-decoration-color: #f43f5e;
+      text-decoration-thickness: 1.5px;
+      white-space: nowrap;
+    }
+
+    .discount-badge {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      padding: 3px 9px;
+      border-radius: 20px;
+      background: #dcfce7;
+      color: #15803d;
+      border: 1px solid #86efac;
+      white-space: nowrap;
+    }
+
+    .plan-price {
+      font-family: 'Sora', sans-serif;
+      font-size: 48px;
+      font-weight: 900;
+      color: var(--primary-navy);
+      letter-spacing: -1.2px;
+      line-height: 1.1;
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+
+    .plan-price.highlight {
+      color: var(--primary);
+    }
+
+    .plan-price span {
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .plan-features {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      margin-bottom: 32px;
+      flex-grow: 1;
+      font-size: 15.5px;
+      color: #334155;
+    }
+
+    .plan-btn {
+      width: 100%;
+      padding: 16px;
+      border-radius: 14px;
+      font-weight: 800;
+      font-size: 16px;
+      text-align: center;
+      cursor: pointer;
+      border: none;
+      text-decoration: none;
+      display: block;
+      transition: all 0.2s ease;
+    }
+
+    .plan-btn.primary {
+      background: var(--primary);
+      color: white;
+      box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
+    }
+
+    .plan-btn.primary:hover {
+      background: var(--primary-hover);
+      transform: translateY(-2px);
+    }
+
+    .plan-btn.outline {
+      background: #eff6ff;
+      color: var(--primary);
+      border: 2px solid #bfdbfe;
+    }
+
+    .plan-btn.outline:hover {
+      background: #dbeafe;
+    }
+
+    /* ROI BANNER (MASSIVE IMPACT) */
+    .roi-banner {
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #0f172a 100%);
+      border-radius: 24px;
+      padding: 42px 52px;
+      color: white;
+      margin-top: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border: 2px solid #3b82f6;
+      box-shadow: var(--shadow-lg);
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .roi-text h3 {
+      font-family: 'Sora', sans-serif;
+      font-size: 28px;
+      font-weight: 900;
+      margin-bottom: 10px;
+    }
+
+    .roi-text p {
+      color: #bfdbfe;
+      font-size: 17px;
+      max-width: 720px;
+      line-height: 1.6;
+    }
+
+    .roi-stat-box {
+      background: rgba(255,255,255,0.12);
+      padding: 20px 32px;
+      border-radius: 18px;
+      text-align: center;
+      border: 1px solid rgba(255,255,255,0.25);
+      backdrop-filter: blur(8px);
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    /* ══════════════════════════════════════════════════════════════════
+       FINAL HIGH-CONVERTING CTA (STICKY / BOLD)
+       ══════════════════════════════════════════════════════════════════ */
+    .cta-box {
+      background: #ffffff;
+      border: 3px solid #e2e8f0;
+      border-radius: 28px;
+      padding: 60px;
+      text-align: center;
+      margin-top: 65px;
+      box-shadow: var(--shadow-lg);
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .cta-box h2 {
+      font-family: 'Sora', sans-serif;
+      font-size: 40px;
+      font-weight: 900;
+      color: var(--primary-navy);
+      margin-bottom: 16px;
+      letter-spacing: -0.5px;
+    }
+
+    .cta-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-top: 32px;
+    }
+
+    .btn-wa {
+      background: #25d366;
+      color: white;
+      padding: 18px 38px;
+      border-radius: 14px;
+      font-weight: 800;
+      font-size: 18px;
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      box-shadow: 0 6px 18px rgba(37, 211, 102, 0.4);
+      transition: transform 0.2s ease;
+    }
+
+    .btn-wa:hover {
+      transform: translateY(-3px);
+      background: #22c35e;
+    }
+
+    .btn-phone {
+      background: var(--primary-navy);
+      color: white;
+      padding: 18px 38px;
+      border-radius: 14px;
+      font-weight: 800;
+      font-size: 18px;
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      transition: transform 0.2s ease;
+    }
+
+    .btn-phone:hover {
+      transform: translateY(-3px);
+      background: #1e293b;
+    }
+
+    /* ══════════════════════════════════════════════════════════════════
+       PRINT & PDF EXPORT OPTIMIZATIONS (ZERO CLIPPING / PAGE-BREAKS)
+       ══════════════════════════════════════════════════════════════════ */
+    .page-break-before {
+      page-break-before: always;
+      break-before: page;
+    }
+
+    .no-break {
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    @media print {
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      @page {
+        size: A4 portrait;
+        margin: 12mm 10mm;
+      }
+      body {
+        padding-bottom: 0 !important;
+        background: #ffffff !important;
+      }
+      header {
+        padding: 50px 0 40px 0 !important;
+      }
+      section {
+        padding: 40px 0 !important;
+      }
+      .page-break-before {
+        page-break-before: always !important;
+        break-before: page !important;
+      }
+      .pain-solution-grid,
+      .pain-card,
+      .solution-card,
+      .module-card,
+      .pricing-grid,
+      .pricing-card,
+      .roi-banner,
+      .cta-box,
+      .section-header,
+      .hero-metrics,
+      .hero-metric-card,
+      .ui-window,
+      .whatsapp-phone-frame {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+      .pricing-card {
+        padding: 32px 24px !important;
+      }
+      .pricing-card.featured {
+        padding-top: 52px !important;
+      }
+      .featured-tag {
+        top: -14px !important;
+      }
+      .pricing-grid {
+        gap: 16px !important;
+      }
+      .plan-features li {
+        font-size: 13px !important;
+        margin-bottom: 8px !important;
+      }
+      .plan-price {
+        font-size: 38px !important;
+      }
+      .plan-price span {
+        font-size: 14px !important;
+      }
+      .cta-box {
+        padding: 40px 30px !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HERO SECTION -->
+  <header>
+    <div class="container">
+      <div class="brand-bar">
+        <div class="logo-badge">
+          <div class="logo-icon">⚡</div>
+          <div>
+            <div class="logo-text">GymFlow</div>
+            <span class="logo-tag">B2B SaaS Platform</span>
+          </div>
+        </div>
+        <div class="contact-pill">
+          <span>📞 Helpline: 0300-2485885</span>
+          <span>•</span>
+          <span>📍 Karachi, Pakistan</span>
+        </div>
+      </div>
+
+      <div class="hero-badge-tag">
+        <span>⚡</span> Pakistan's #1 Dedicated Gym Operating System
+      </div>
+
+      <h1 class="hero-title">
+        Stop Managing Your Gym on Paper Registers. <span>Automate Fees & Attendance in 1 Tap.</span>
+      </h1>
+      <p class="hero-subtitle">
+        Pakistani fitness centers ke liye banaya gaya modern B2B SaaS. Expiry se 3 din pehle automated WhatsApp reminders bhejein, 1-second mein numeric attendance lagayein, aur Raast QR se 100% fees secure karein.
+      </p>
+
+      <div class="hero-metrics-grid">
+        <div class="hero-metric-card">
+          <div class="metric-value green">Rs 45,000+</div>
+          <div class="metric-label">Avg. Unpaid Dues Recovered/Mo</div>
+        </div>
+        <div class="hero-metric-card">
+          <div class="metric-value blue">1-Second</div>
+          <div class="metric-label">Front Desk Check-in Speed</div>
+        </div>
+        <div class="hero-metric-card">
+          <div class="metric-value cyan">0% Hardware</div>
+          <div class="metric-label">Runs on any Phone / Laptop</div>
+        </div>
+        <div class="hero-metric-card">
+          <div class="metric-value amber">118+ Tests</div>
+          <div class="metric-label">100% Verified Cloud Security</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- PAIN POINTS VS GYMFLOW -->
+  <section>
+    <div class="container">
+      <div class="section-header">
+        <span class="section-badge">Why GymFlow?</span>
+        <h2 class="section-title">Kiya Aapka Gym Har Mahine Revenue Lose Kar Raha Hai?</h2>
+        <p class="section-desc">Traditional paper registers aur Excel formulas se gym chalane mein honay walay baray nuqsanaat aur GymFlow ka instant digital solution:</p>
+      </div>
+
+      <div class="pain-solution-grid">
+        <div class="pain-card">
+          <div class="card-heading">
+            <span>❌</span> Purana Tareeqa (Paper Register / Excel)
+          </div>
+          <ul class="check-list">
+            <li>
+              <span class="icon">⚠️</span>
+              <span><strong>Bhooli hui Fees:</strong> Har mahine 15–20 members baghair fees diye workout karte hain kyunke register mein expiry date dhoondna na-mumkin hota hai.</span>
+            </li>
+            <li>
+              <span class="icon">⚠️</span>
+              <span><strong>Sharam aur Confrontation:</strong> Counter pe member se baar baar fees maangte hue jhamp aati hai ya relation kharab hota hai.</span>
+            </li>
+            <li>
+              <span class="icon">⚠️</span>
+              <span><strong>Rush Hours pe Bheed:</strong> Sham 6 se 10 baje tak entry register pe likhte likhte counter pe lambi line lag jati hai.</span>
+            </li>
+            <li>
+              <span class="icon">⚠️</span>
+              <span><strong>Ghaib Munafa:</strong> Mahine ke aakhir mein pata hi nahi chalta ke kitna cash aaya, kitne kharche hue aur net profit kitna bacha.</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="solution-card">
+          <div class="card-heading">
+            <span>⚡</span> GymFlow Smart Automation Solution
+          </div>
+          <ul class="check-list">
+            <li>
+              <span class="icon">🟢</span>
+              <span><strong>1-Tap WhatsApp Dues Engine:</strong> Expiry se 3 din pehle respectful digital bill aur Raast QR member ke WhatsApp pe automatically chala jata hai.</span>
+            </li>
+            <li>
+              <span class="icon">🟢</span>
+              <span><strong>1-Second Numeric / QR Check-in:</strong> Member 4-digit ID batata hai aur screen pe foran GREEN (Paid) ya RED (Expired) alert aa jata hai.</span>
+            </li>
+            <li>
+              <span class="icon">🟢</span>
+              <span><strong>Digital Ledger & Raast QR:</strong> JazzCash, EasyPaisa, Raast aur Cash payments ka 1-click hisaab with instant digital slip.</span>
+            </li>
+            <li>
+              <span class="icon">🟢</span>
+              <span><strong>Live Real-time Financial Dashboard:</strong> Gym owner apne mobile se kisi bhi waqt dekh sakta hai ke aaj kitna cash collect hua aur active members kitne hain.</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VISUAL FEATURE MODULES -->
+  <section class="page-break-before" style="background: #f1f5f9;">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-badge">Visual Feature Showcase</span>
+        <h2 class="section-title">GymFlow Application Ka Live Experience</h2>
+        <p class="section-desc">Har module ko real-world gym operations ke mutabiq design kiya gaya hai:</p>
+      </div>
+
+      <div class="visual-modules-container">
+
+        <!-- MODULE 1: EXECUTIVE DASHBOARD -->
+        <div class="module-card">
+          <div class="module-content">
+            <span class="module-badge badge-blue">📊 Module 01</span>
+            <h3 class="module-title">Real-Time Executive Dashboard</h3>
+            <p class="module-desc">
+              Gym owner ko subah subah complete transparency milti hai: Aaj ki collection, active vs. expired members, aur total pending dues 1 clean screen par.
+            </p>
+            <ul class="module-features-list">
+              <li><span class="dot-check">✓</span> Live Revenue KPI Cards (Today, This Week, Month)</li>
+              <li><span class="dot-check">✓</span> Active vs. Expired Member Split</li>
+              <li><span class="dot-check">✓</span> Overdue Dues Recovery Sentinel</li>
+            </ul>
+          </div>
+          <div class="module-visual-pane">
+            <div class="ui-window">
+              <div class="ui-window-header">
+                <div class="ui-dots"><div class="ui-dot red"></div><div class="ui-dot yellow"></div><div class="ui-dot green"></div></div>
+                <div class="ui-url">gymflow.app/dashboard</div>
+              </div>
+              <div class="ui-body">
+                <div class="dash-kpis">
+                  <div class="dash-kpi">
+                    <div class="dash-kpi-lbl">Today's Collection</div>
+                    <div class="dash-kpi-val">Rs. 38,500</div>
+                    <div class="dash-kpi-sub">↑ 8 Payments Recorded</div>
+                  </div>
+                  <div class="dash-kpi">
+                    <div class="dash-kpi-lbl">Active Members</div>
+                    <div class="dash-kpi-val">248 / 265</div>
+                    <div class="dash-kpi-sub" style="color: #f87171;">17 Dues Pending</div>
+                  </div>
+                </div>
+                <table class="dash-table">
+                  <thead>
+                    <tr><th>Member</th><th>Plan</th><th>Amount</th><th>Status</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td><strong>Ali Hamza</strong><br><span style="font-size:10px;color:#64748b;">GF-0142</span></td><td>3-Mo Muscle</td><td>Rs. 4,500</td><td><span class="badge-status status-paid">PAID (Raast)</span></td></tr>
+                    <tr><td><strong>Bilal Tariq</strong><br><span style="font-size:10px;color:#64748b;">GF-0089</span></td><td>Monthly Cardio</td><td>Rs. 3,500</td><td><span class="badge-status status-due">PENDING</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- MODULE 2: WHATSAPP DUES ENGINE -->
+        <div class="module-card reverse">
+          <div class="module-visual-pane">
+            <div class="whatsapp-phone-frame">
+              <div class="wa-top-bar">
+                <div class="wa-avatar">⚡</div>
+                <div>
+                  <div class="wa-name">Fitzone Gym Official</div>
+                  <div class="wa-status">Online • Verified Account</div>
+                </div>
+              </div>
+              <div class="wa-chat-bg">
+                <div class="wa-msg-bubble">
+                  Assalam-o-Alaikum <strong>Bilal Tariq Bhai!</strong> 🏋️<br><br>
+                  Aapka <strong>Monthly Cardio Plan</strong> kal expire ho raha hai.<br>
+                  • Amount Due: <strong>PKR 3,500</strong><br>
+                  • Due Date: <strong>10 Oct 2026</strong><br>
+                  <div class="wa-qr-card">
+                    <div style="font-size: 11px; font-weight: 700; color: #0f172a;">Instant Raast EMVCo QR</div>
+                    <div class="wa-qr-box">📱</div>
+                    <a href="#" class="wa-pay-btn">1-Tap Pay via Raast</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="module-content">
+            <span class="module-badge badge-green">💬 Module 02</span>
+            <h3 class="module-title">1-Tap WhatsApp Dues Recovery</h3>
+            <p class="module-desc">
+              Zero awkwardness. System member ke WhatsApp par customized Urdu/English digital bill aur Raast QR link bhej deta hai. Expiry se pehle hi 85% members payment clear kar dete hain!
+            </p>
+            <ul class="module-features-list">
+              <li><span class="dot-check">✓</span> Respectful Tone (Preserves Member Relations)</li>
+              <li><span class="dot-check">✓</span> Dynamic Member Name & Package Amount</li>
+              <li><span class="dot-check">✓</span> Direct Raast EMVCo QR Code Link</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- MODULE 3: 1-SECOND ATTENDANCE KIOSK -->
+        <div class="module-card page-break-before">
+          <div class="module-content">
+            <span class="module-badge badge-cyan">⚡ Module 03</span>
+            <h3 class="module-title">1-Second Front-Desk Attendance</h3>
+            <p class="module-desc">
+              Peak hours (6 PM–10 PM) par counter par bheed khatam. Receptionist sirf 4-digit ID type karta hai aur screen par foran GREEN (Paid) ya RED (Expired) alert pop hota hai.
+            </p>
+            <ul class="module-features-list">
+              <li><span class="dot-check">✓</span> 1-Second Response Time (Zero Lag)</li>
+              <li><span class="dot-check">✓</span> Morning vs. Evening Shift Auto-Detection</li>
+              <li><span class="dot-check">✓</span> Duplicate Check-in Prevention</li>
+            </ul>
+          </div>
+          <div class="module-visual-pane">
+            <div class="ui-window">
+              <div class="ui-window-header">
+                <div class="ui-dots"><div class="ui-dot red"></div><div class="ui-dot yellow"></div><div class="ui-dot green"></div></div>
+                <div class="ui-url">gymflow.app/attendance</div>
+              </div>
+              <div class="ui-body">
+                <div class="kiosk-box">
+                  <div style="font-size: 11px; color: #94a3b8; margin-bottom: 6px;">ENTER MEMBER ID NUMBER:</div>
+                  <div class="kiosk-input-display">GF-0142</div>
+                  <div class="kiosk-result-paid">
+                    <div style="font-weight: 800; font-size: 15px;">🟢 ACCESS GRANTED</div>
+                    <div style="font-size: 12px; color: #a7f3d0; margin-top: 2px;">Ali Hamza • Monthly Muscle (18 Days Left)</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- MODULE 4: SUPPLEMENT & POS INVENTORY -->
+        <div class="module-card reverse">
+          <div class="module-visual-pane">
+            <div class="ui-window">
+              <div class="ui-window-header">
+                <div class="ui-dots"><div class="ui-dot red"></div><div class="ui-dot yellow"></div><div class="ui-dot green"></div></div>
+                <div class="ui-url">gymflow.app/inventory</div>
+              </div>
+              <div class="ui-body">
+                <div class="pos-grid">
+                  <div class="pos-item">
+                    <div class="pos-item-icon">🥤</div>
+                    <div>
+                      <div class="pos-item-name">Whey Scoop</div>
+                      <div class="pos-item-price">Rs. 350 • Stock: 42</div>
+                    </div>
+                  </div>
+                  <div class="pos-item">
+                    <div class="pos-item-icon">⚡</div>
+                    <div>
+                      <div class="pos-item-name">C4 Pre-Workout</div>
+                      <div class="pos-item-price">Rs. 250 • Stock: 18</div>
+                    </div>
+                  </div>
+                  <div class="pos-item">
+                    <div class="pos-item-icon">💧</div>
+                    <div>
+                      <div class="pos-item-name">Mineral Water</div>
+                      <div class="pos-item-price">Rs. 80 • Stock: 85</div>
+                    </div>
+                  </div>
+                  <div class="pos-item">
+                    <div class="pos-item-icon">🥊</div>
+                    <div>
+                      <div class="pos-item-name">Gym Straps</div>
+                      <div class="pos-item-price">Rs. 650 • Stock: 12</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="module-content">
+            <span class="module-badge badge-amber">🥤 Module 04</span>
+            <h3 class="module-title">Supplement & Drinks POS Inventory</h3>
+            <p class="module-desc">
+              Gym counter par protein scoops, pre-workout drinks, water bottles aur accessories ki sales ka 1-click billing hisaab. Low-stock alerts aur exact retail profit margins track karein.
+            </p>
+            <ul class="module-features-list">
+              <li><span class="dot-check">✓</span> 1-Click Walk-in POS Billing</li>
+              <li><span class="dot-check">✓</span> Automated Low-Stock Warnings</li>
+              <li><span class="dot-check">✓</span> Wholesale Cost vs. Retail Margin Analytics</li>
+            </ul>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- PRICING TIERS SECTION -->
+  <section class="page-break-before">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-badge">Transparent Pricing</span>
+        <h2 class="section-title">Investment Jo 1st Week Mein Hi Vasool Ho Jaye</h2>
+        <p class="section-desc">Koi hidden setup fees nahi. 14 din ka free trial, full onboarding support ke sath:</p>
+      </div>
+
+      <div class="pricing-grid">
+        <!-- Tier 1 -->
+        <div class="pricing-card">
+          <div class="plan-name">Starter Gym</div>
+          <div class="plan-desc">Neighborhood fitness clubs & boxing studios ke liye perfect.</div>
+          <div class="price-block">
+            <div class="price-strike-row">
+              <span class="price-original">Rs. 3,500</span>
+              <span class="discount-badge">Save Rs. 500 / mo</span>
+            </div>
+            <div class="plan-price">Rs. 3,000 <span>/ month</span></div>
+          </div>
+          <ul class="plan-features">
+            <li>✔ Up to 150 Active Members</li>
+            <li>✔ 1-Second Attendance Kiosk</li>
+            <li>✔ WhatsApp Direct Dues Reminders</li>
+            <li>✔ Raast QR & Cash Ledger</li>
+            <li>✔ Daily Financial Summaries</li>
+            <li>✔ 1 Staff / Owner Account</li>
+          </ul>
+          <a href="https://wa.me/923002485885?text=Hi%20GymFlow,%20I%20want%20to%20start%20Starter%20Plan%20(Rs%203,000/mo)%20Free%20Trial" class="plan-btn outline">Start 14-Day Free Trial</a>
+        </div>
+
+        <!-- Tier 2 -->
+        <div class="pricing-card featured">
+          <div class="featured-tag">MOST POPULAR • SAVE 25%</div>
+          <div class="plan-name">Pro Growth</div>
+          <div class="plan-desc">Commercial gyms & crossfit centers ke liye best-seller.</div>
+          <div class="price-block">
+            <div class="price-strike-row">
+              <span class="price-original">Rs. 8,000</span>
+              <span class="discount-badge">Save Rs. 2,000 / mo</span>
+            </div>
+            <div class="plan-price highlight">Rs. 6,000 <span>/ month</span></div>
+          </div>
+          <ul class="plan-features">
+            <li>✔ Up to 400 Active Members</li>
+            <li>✔ Automated WhatsApp Cloud API Queue</li>
+            <li>✔ Supplement & Drinks POS System</li>
+            <li>✔ Personal Training / Package Tracking</li>
+            <li>✔ 3 Staff Logins (Reception + Trainers)</li>
+            <li>✔ Free Register / Excel Data Migration</li>
+            <li>✔ Priority 24/7 WhatsApp Support</li>
+          </ul>
+          <a href="https://wa.me/923002485885?text=Hi%20GymFlow,%20I%20want%20to%20claim%20Pro%20Growth%20Discounted%20Plan%20(Rs%206,000/mo)" class="plan-btn primary">Claim Pro Free Trial</a>
+        </div>
+
+        <!-- Tier 3 -->
+        <div class="pricing-card">
+          <div class="plan-name">Elite / Multi-Branch</div>
+          <div class="plan-desc">Multi-floor gyms, franchises & premium fitness chains.</div>
+          <div class="price-block">
+            <div class="price-strike-row">
+              <span class="price-original">Rs. 12,000</span>
+              <span class="discount-badge">Save Rs. 2,000 / mo</span>
+            </div>
+            <div class="plan-price">Rs. 10,000 <span>/ month</span></div>
+          </div>
+          <ul class="plan-features">
+            <li>✔ Unlimited Active Members</li>
+            <li>✔ Multi-Branch Central Dashboard</li>
+            <li>✔ Custom Gym Branding & Domain</li>
+            <li>✔ Unlimited Staff Logins</li>
+            <li>✔ Dedicated VIP Account Manager</li>
+            <li>✔ Biometric Turnstile Hardware API</li>
+          </ul>
+          <a href="https://wa.me/923002485885?text=Hi%20GymFlow,%20I%20want%20to%20discuss%20Elite%20Multi-Branch%20Plan%20(Rs%2010,000/mo)" class="plan-btn outline">Contact Enterprise Sales</a>
+        </div>
+      </div>
+
+      <!-- ROI CALCULATION BANNER -->
+      <div class="roi-banner">
+        <div class="roi-text">
+          <h3>💡 Simple Math: GymFlow Free Mein Kaise Parta Hai?</h3>
+          <p>
+            Agar aapke gym ke sirf <strong>2 members</strong> GymFlow ke automated WhatsApp reminder ki wajah se time par fees de dein (2 × Rs. 2,000 = Rs. 4,000), toh GymFlow ka pura monthly subscription pehle haftay mein hi free ho jata hai! Baqi sab 100% extra recovered profit hai!
+          </p>
+        </div>
+        <div class="roi-stat-box">
+          <div style="font-size: 12px; text-transform: uppercase; color: #93c5fd; font-weight: 800; letter-spacing: 1px;">Guaranteed ROI</div>
+          <div style="font-size: 32px; font-weight: 900; color: #34d399; font-family: 'Sora', sans-serif;">+300%</div>
+        </div>
+      </div>
+
+      <!-- FINAL CTA -->
+      <div class="cta-box">
+        <h2>Apne Gym Ko Aaj Hi Digital Karein!</h2>
+        <p style="color: var(--text-muted); font-size: 18px; max-width: 720px; margin: 0 auto; line-height: 1.6;">
+          Hamari team se live WhatsApp demo lein ya 14-day free trial shuru karein. Hum aapka pura purana register data GymFlow par free shift kar ke dein ge.
+        </p>
+        <div class="cta-buttons">
+          <a href="https://wa.me/923002485885" class="btn-wa">
+            <span>💬</span> WhatsApp Par Live Demo Lein
+          </a>
+          <a href="tel:03002485885" class="btn-phone">
+            <span>📞</span> Call: 0300-2485885
+          </a>
+        </div>
+        <div style="margin-top: 20px; font-size: 14px; color: #94a3b8; font-weight: 600;">
+          ✓ No Credit Card Required • ✓ Instant Activation • ✓ 100% Data Guarantee
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+</body>
+</html>
